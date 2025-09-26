@@ -1,6 +1,7 @@
 import requests
 from bs4 import BeautifulSoup
 import time
+import os
 from tqdm import tqdm
  
 class Parser:
@@ -98,7 +99,11 @@ class Parser:
 
     def _save_to_file(self):
         """Сохраняет результаты в файл"""
-        with open('floats.txt', 'a') as file:
+        filename = 'floats.txt'
+        absolute_path = os.path.abspath(filename)
+        print(f"\nСохраняем результаты ({len(self.kvs)} объявлений) в файл: {absolute_path}")
+        
+        with open(filename, 'a') as file:
             for kv in self.kvs:
                 file.write(f'{kv[0]} - {kv[1]} - {kv[2]} - {kv[3]}\n')
 
