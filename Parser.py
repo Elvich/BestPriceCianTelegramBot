@@ -4,6 +4,7 @@ import time
 import os
 import csv
 from tqdm import tqdm
+from FileSaver import Saver
  
 class Parser:
     """
@@ -100,23 +101,7 @@ class Parser:
 
     def _save_to_file(self):
         """Сохраняет результаты в CSV файл"""
-        filename = 'apartments.csv'
-        absolute_path = os.path.abspath(filename)
-        print(f"\nСохраняем результаты ({len(self.kvs)} объявлений) в файл: {absolute_path}")
-        
-        # Проверяем, существует ли файл для определения необходимости записи заголовков
-        file_exists = os.path.exists(filename)
-        
-        with open(filename, 'a', newline='', encoding='utf-8') as file:
-            writer = csv.writer(file)
-            
-            # Записываем заголовки только если файл новый
-            if not file_exists:
-                writer.writerow(['Ссылка', 'Название', 'Цена', 'Цена за м²'])
-            
-            # Записываем данные
-            for kv in self.kvs:
-                writer.writerow(kv)
+        Saver(filename='apartments.csv').save(data=self.kvs)
 
     def parse(self):
         """Основной метод парсинга"""
