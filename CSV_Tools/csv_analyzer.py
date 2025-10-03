@@ -44,7 +44,7 @@ def read_apartments_csv(filename='apartments.csv'):
             if prices:
                 print(f"   Минимальная цена: {min(prices):,} ₽")
                 print(f"   Максимальная цена: {max(prices):,} ₽")  
-                print(f"   Средняя цена: {sum(prices) // len(prices):,} ₽")
+                print(f"   Средняя цена: {int(sum(prices) / len(prices)):,} ₽")
                 print(f"   Медианная цена: {sorted(prices)[len(prices)//2]:,} ₽")
         
     except FileNotFoundError:
