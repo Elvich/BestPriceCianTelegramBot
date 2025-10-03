@@ -2,7 +2,7 @@ import os
 import csv
 
 class Saver:
-    def __init__(self, filename = 'apartments.csv'):
+    def __init__(self, filename='apartments.csv'):
         self.filename = filename
 
     def save(self, data):
