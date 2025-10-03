@@ -2,7 +2,9 @@ import requests
 from bs4 import BeautifulSoup
 import time
 import os
+import csv
 from tqdm import tqdm
+from FileSaver import Saver
  
 class Parser:
     """
@@ -98,14 +100,8 @@ class Parser:
         return page_items
 
     def _save_to_file(self):
-        """Сохраняет результаты в файл"""
-        filename = 'floats.txt'
-        absolute_path = os.path.abspath(filename)
-        print(f"\nСохраняем результаты ({len(self.kvs)} объявлений) в файл: {absolute_path}")
-        
-        with open(filename, 'a') as file:
-            for kv in self.kvs:
-                file.write(f'{kv[0]} - {kv[1]} - {kv[2]} - {kv[3]}\n')
+        """Сохраняет результаты в CSV файл"""
+        Saver(filename='apartments.csv').save(data=self.kvs)
 
     def parse(self):
         """Основной метод парсинга"""
