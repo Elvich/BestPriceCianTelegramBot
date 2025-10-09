@@ -218,3 +218,17 @@ floats.txt
 Test.py
 apartments.csv
 Config.py
+
+# Generated Excel files
+*.xlsx
+test_*.py
+demo.py
+TestDB.py
+
+# Database files (optional - if you want to keep db in git, remove this)
+*.sqlite
+*.db
+
+# Temporary and test files
+temp_*
+test_*

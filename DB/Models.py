@@ -1,6 +1,7 @@
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 from sqlalchemy.ext.asyncio import AsyncAttrs, async_sessionmaker, create_async_engine
-from sqlalchemy import String, Integer, BigInteger
+from sqlalchemy import String, Integer, BigInteger, Text, DateTime, Float, Boolean, ForeignKey, JSON
+from datetime import datetime
 import sys
 import os
 
@@ -14,6 +15,79 @@ async_session = async_sessionmaker(engine)
 class Base(AsyncAttrs, DeclarativeBase):
     pass
 
+class Apartment(Base):
+    """Модель для хранения объявлений о квартирах"""
+    __tablename__ = "apartments"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    cian_id: Mapped[str] = mapped_column(String(50), unique=True, index=True)  # ID из URL Cian
+    url: Mapped[str] = mapped_column(Text, nullable=False)
+    title: Mapped[str] = mapped_column(Text, nullable=False)
+    price: Mapped[int] = mapped_column(Integer, nullable=True)  # Цена в рублях
+    price_per_sqm: Mapped[int] = mapped_column(Integer, nullable=True)  # Цена за м² в рублях
+    
+    # Детальная информация (из глубокого парсинга)
+    address: Mapped[str] = mapped_column(Text, nullable=True)
+    floor: Mapped[int] = mapped_column(Integer, nullable=True)
+    floors_total: Mapped[int] = mapped_column(Integer, nullable=True)
+    area: Mapped[float] = mapped_column(Float, nullable=True)
+    rooms: Mapped[int] = mapped_column(Integer, nullable=True)
+    
+    # Метаданные
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    first_seen: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    last_updated: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Связи
+    metro_stations: Mapped[list["MetroStation"]] = relationship("MetroStation", back_populates="apartment", cascade="all, delete-orphan")
+    price_history: Mapped[list["PriceHistory"]] = relationship("PriceHistory", back_populates="apartment", cascade="all, delete-orphan")
+
+class MetroStation(Base):
+    """Модель для хранения информации о станциях метро"""
+    __tablename__ = "metro_stations"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    apartment_id: Mapped[int] = mapped_column(Integer, ForeignKey("apartments.id"), nullable=False)
+    station_name: Mapped[str] = mapped_column(String(100), nullable=False)
+    travel_time: Mapped[str] = mapped_column(String(50), nullable=True)  # "8 мин пешком"
+    
+    # Связи
+    apartment: Mapped["Apartment"] = relationship("Apartment", back_populates="metro_stations")
+
+class PriceHistory(Base):
+    """Модель для отслеживания истории изменения цен"""
+    __tablename__ = "price_history"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    apartment_id: Mapped[int] = mapped_column(Integer, ForeignKey("apartments.id"), nullable=False)
+    price: Mapped[int] = mapped_column(Integer, nullable=False)
+    price_per_sqm: Mapped[int] = mapped_column(Integer, nullable=True)
+    recorded_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    
+    # Связи
+    apartment: Mapped["Apartment"] = relationship("Apartment", back_populates="price_history")
+
+class User(Base):
+    """Модель для пользователей бота"""
+    __tablename__ = "users"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    telegram_id: Mapped[int] = mapped_column(BigInteger, unique=True, index=True)
+    username: Mapped[str] = mapped_column(String(100), nullable=True)
+    first_name: Mapped[str] = mapped_column(String(100), nullable=True)
+    last_name: Mapped[str] = mapped_column(String(100), nullable=True)
+    
+    # Настройки пользователя
+    max_price: Mapped[int] = mapped_column(Integer, nullable=True)
+    min_price: Mapped[int] = mapped_column(Integer, nullable=True)
+    preferred_metro: Mapped[str] = mapped_column(JSON, nullable=True)  # Список станций метро
+    
+    # Метаданные
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    last_activity: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+
+# Устаревшая модель - оставляем для совместимости
 class Expense(Base):
     __tablename__ = "expenses"
 
