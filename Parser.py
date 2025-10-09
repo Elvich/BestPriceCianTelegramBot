@@ -191,7 +191,11 @@ class Parser:
             # Глубокий парсинг для каждого объявления
             detailed_kvs = []
             for item in tqdm(self.kvs, desc="Глубокий парсинг объявлений", unit="объявл"):
-                details = self._deep_parse(item[0])  # item[0] - ссылка на объявление
+                try:
+                    details = self._deep_parse(item[0])  # item[0] - ссылка на объявление
+                except Exception as e:
+                    print(f"Ошибка при глубоком парсинге {item[0]}: {e}")
+                    details = None
                 detailed_kvs.append(item + [details])  # Добавляем детали к основным данным
                 time.sleep(config.PARSER_DEEP_DELAY)  # Пауза между запросами
             
