@@ -1,3 +1,10 @@
+# Environment variables and sensitive data
+.env
+*.env
+!.env.example
+config/.env
+!config/.env.example
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]

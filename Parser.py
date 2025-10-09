@@ -3,6 +3,7 @@ from bs4 import BeautifulSoup
 import time
 from tqdm import tqdm
 from FileSaver import Saver
+from config import config
  
 class Parser:
     """
@@ -184,7 +185,7 @@ class Parser:
                 
                 # Обновляем прогресс-бар
                 pbar.update(1)
-                time.sleep(3)
+                time.sleep(config.PARSER_DELAY)
 
         if deep_parse:
             # Глубокий парсинг для каждого объявления
@@ -192,7 +193,7 @@ class Parser:
             for item in tqdm(self.kvs, desc="Глубокий парсинг объявлений", unit="объявл"):
                 details = self._deep_parse(item[0])  # item[0] - ссылка на объявление
                 detailed_kvs.append(item + [details])  # Добавляем детали к основным данным
-                time.sleep(2)  # Пауза между запросами
+                time.sleep(config.PARSER_DEEP_DELAY)  # Пауза между запросами
             
             self.kvs = detailed_kvs  # Обновляем основной список на детализированный
 
