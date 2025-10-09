@@ -16,7 +16,7 @@ class Saver:
         with open(self.filename, 'a', newline='', encoding='utf-8') as file:
             writer = csv.writer(file)
             
-            writer.writerow(['Ссылка', 'Название', 'Цена', 'Цена за м²'])
+            writer.writerow(['Ссылка', 'Название', 'Цена', 'Цена за м²', 'Детали'])
             
             # Записываем данные
             for kv in data:

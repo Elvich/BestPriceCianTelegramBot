@@ -96,7 +96,68 @@ class Parser:
         """Сохраняет результаты в CSV файл"""
         Saver(filename='apartments.csv').save(data=self.kvs)
 
-    def parse(self, url, start_page=1, end_page=17, write_to_file=False):
+    def _deep_parse(self, url):
+        """Глубокий парсинг страницы с детальным извлечением данных"""
+        html_content = self._fetch_page_content(url)
+        soup = BeautifulSoup(html_content, 'lxml')
+
+        # Извлекаем дополнительные данные из карточки
+        details = {}
+        details['address'] = soup.find('span', {'itemprop': 'name'}).get('content')
+        
+        # Извлекаем информацию о станциях метро
+        details['metro_stations'] = self._extract_metro_info(soup)
+
+        return details
+
+    def _extract_metro_info(self, soup):
+        """
+        Извлекает информацию о станциях метро и времени до них.
+        
+        Args:
+            soup: BeautifulSoup объект страницы
+            
+        Returns:
+            list: Список словарей с информацией о станциях метро
+                  [{'station': 'Полежаевская', 'time': '8 мин.'}, ...]
+        """
+        metro_info = []
+        
+        try:
+            # Ищем контейнер со списком станций метро
+            metro_list = soup.find('ul', class_='xa15a2ab7--_065fb--undergrounds')
+            
+            if metro_list:
+                # Находим все элементы станций
+                metro_items = metro_list.find_all('li', class_='xa15a2ab7--d9f62d--underground')
+                
+                for item in metro_items:
+                    try:
+                        # Извлекаем название станции
+                        station_link = item.find('a', class_='xa15a2ab7--d9f62d--underground_link')
+                        station_name = station_link.get_text(strip=True) if station_link else None
+                        
+                        # Извлекаем время до станции
+                        time_span = item.find('span', class_='xa15a2ab7--d9f62d--underground_time')
+                        travel_time = time_span.get_text(strip=True) if time_span else None
+                        
+                        # Добавляем информацию если оба значения найдены
+                        if station_name and travel_time:
+                            metro_info.append({
+                                'station': station_name,
+                                'time': travel_time
+                            })
+                            
+                    except Exception as e:
+                        print(f"Ошибка при извлечении данных станции метро: {e}")
+                        continue
+                        
+        except Exception as e:
+            print(f"Ошибка при поиске информации о метро: {e}")
+            
+        return metro_info
+
+    def parse(self, url, start_page=1, end_page=17, write_to_file=False, deep_parse=False):
         """Основной метод парсинга"""
         self.kvs = []
         self._validate_params(url, start_page, end_page)
@@ -124,6 +185,16 @@ class Parser:
                 # Обновляем прогресс-бар
                 pbar.update(1)
                 time.sleep(3)
+
+        if deep_parse:
+            # Глубокий парсинг для каждого объявления
+            detailed_kvs = []
+            for item in tqdm(self.kvs, desc="Глубокий парсинг объявлений", unit="объявл"):
+                details = self._deep_parse(item[0])  # item[0] - ссылка на объявление
+                detailed_kvs.append(item + [details])  # Добавляем детали к основным данным
+                time.sleep(2)  # Пауза между запросами
+            
+            self.kvs = detailed_kvs  # Обновляем основной список на детализированный
 
         if write_to_file:
             self._save_to_file()
