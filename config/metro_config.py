@@ -1,0 +1,58 @@
+# Конфигурация станций метро
+# Этот файл содержит списки станций для фильтрации объявлений
+
+# Заблокированные станции метро (бан-лист)
+# Квартиры у этих станций будут исключены из рассмотрения
+BLOCKED_METRO_STATIONS = [
+    
+]
+
+# Предпочитаемые станции метро (whitelist)
+# Квартиры у этих станций получат приоритет
+PREFERRED_METRO_STATIONS = [
+   
+]
+
+# Максимальное время до ближайшей валидной станции (в минутах)
+MAX_METRO_DISTANCE_MINUTES = 10
+
+# Максимальное время для премиум конфигурации (в минутах)  
+MAX_METRO_DISTANCE_PREMIUM = 8
+
+def get_blocked_stations():
+    """Возвращает список заблокированных станций метро"""
+    return BLOCKED_METRO_STATIONS.copy()
+
+def get_preferred_stations():
+    """Возвращает список предпочитаемых станций метро"""
+    return PREFERRED_METRO_STATIONS.copy()
+
+def is_station_blocked(station_name: str) -> bool:
+    """Проверяет, заблокирована ли станция"""
+    station_lower = station_name.lower()
+    return any(
+        blocked.lower() in station_lower or station_lower in blocked.lower()
+        for blocked in BLOCKED_METRO_STATIONS
+    )
+
+def is_station_preferred(station_name: str) -> bool:
+    """Проверяет, является ли станция предпочитаемой"""
+    station_lower = station_name.lower()
+    return any(
+        preferred.lower() in station_lower or station_lower in preferred.lower()  
+        for preferred in PREFERRED_METRO_STATIONS
+    )
+
+def get_station_priority(station_name: str) -> int:
+    """
+    Возвращает приоритет станции:
+    - 0: заблокированная (не использовать)
+    - 1: обычная станция 
+    - 2: предпочитаемая станция
+    """
+    if is_station_blocked(station_name):
+        return 0
+    elif is_station_preferred(station_name):
+        return 2
+    else:
+        return 1
