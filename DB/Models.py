@@ -35,8 +35,14 @@ class Apartment(Base):
     
     # Метаданные
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    is_staging: Mapped[bool] = mapped_column(Boolean, default=False)  # Флаг для staging записей
     first_seen: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     last_updated: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Поля для фильтрации (только для staging записей)
+    filter_status: Mapped[str] = mapped_column(String(20), nullable=True, default='pending')  # 'pending', 'approved', 'rejected'
+    filter_reason: Mapped[str] = mapped_column(Text, nullable=True)  # Причина отклонения
+    processed_at: Mapped[datetime] = mapped_column(DateTime, nullable=True)  # Время обработки фильтрами
     
     # Связи
     metro_stations: Mapped[list["MetroStation"]] = relationship("MetroStation", back_populates="apartment", cascade="all, delete-orphan")
@@ -86,6 +92,17 @@ class User(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     last_activity: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+
+class FilterLog(Base):
+    """Лог работы фильтра для отслеживания процесса"""
+    __tablename__ = "filter_logs"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    apartment_cian_id: Mapped[str] = mapped_column(String(50), nullable=False)
+    filter_name: Mapped[str] = mapped_column(String(100), nullable=False)
+    result: Mapped[str] = mapped_column(String(20), nullable=False)  # 'pass', 'fail'
+    reason: Mapped[str] = mapped_column(Text, nullable=True)
+    executed_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
 # Устаревшая модель - оставляем для совместимости
 class Expense(Base):

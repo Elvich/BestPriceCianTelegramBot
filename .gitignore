@@ -226,8 +226,30 @@ demo.py
 TestDB.py
 
 # Database files (optional - if you want to keep db in git, remove this)
+# Database files
 *.sqlite
 *.db
+dp_staging.sqlite
+
+# Log files
+*.log
+logs/
+
+# Telegram bot specific
+bot.log
+
+# Temporary and demo files
+demo_apartments.csv
+demo_*.csv
+temp_*
+
+# Old staging files (removed)
+manage_staging.py
+demo_filter_system.py
+filter_apartments.py
+DB/StagingModels.py
+DB/StagingService.py
+DB/init_staging_db.py
 
 # Temporary and test files
 temp_*

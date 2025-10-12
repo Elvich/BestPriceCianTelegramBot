@@ -328,7 +328,7 @@ async def recent_callback_handler(callback: CallbackQuery):
 async def search_apartments_helper(message, is_callback=False):
     """Вспомогательная функция для логики поиска"""
     try:
-        apartments = await ApartmentService.get_apartments(limit=5, only_active=True)
+        apartments = await ApartmentService.get_apartments(limit=5, only_active=True, only_production=True)
         
         if not apartments:
             text = "❌ Объявления не найдены. Возможно, база данных пуста."
