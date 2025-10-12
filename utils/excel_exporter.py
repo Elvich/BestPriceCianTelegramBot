@@ -5,14 +5,18 @@
 
 import pandas as pd
 import os
+import sys
 from datetime import datetime
 from typing import List, Optional
 from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from openpyxl.utils.dataframe import dataframe_to_rows
 
-from DB.ApartmentService import ApartmentService
-from DB.Models import Apartment
+# Добавляем путь к родительской директории
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from DB.apartment_service import ApartmentService
+from DB.models import Apartment
 
 
 class ExcelExporter:

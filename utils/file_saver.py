@@ -3,10 +3,10 @@ import csv
 import asyncio
 import sys
 
-# Добавляем путь к папке DB для импорта
-sys.path.append(os.path.join(os.path.dirname(__file__), 'DB'))
+# Добавляем путь к родительской директории
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from DB.ApartmentService import ApartmentService
+from DB.apartment_service import ApartmentService
 
 class Saver:
     def __init__(self, filename='apartments.csv', save_to_db=True, save_to_csv=False, use_staging=True):

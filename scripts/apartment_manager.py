@@ -7,9 +7,13 @@ import asyncio
 import sys
 import argparse
 from datetime import datetime
+import os
 
-from DB.FilterService import FilterService, FilterConfig, DEFAULT_FILTER_CONFIG, PREMIUM_FILTER_CONFIG, BARGAIN_HUNTER_CONFIG, BOOTSTRAP_CONFIG
-from DB.ApartmentService import ApartmentService
+# Добавляем путь к родительской директории
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from DB.filter_service import FilterService, FilterConfig, DEFAULT_FILTER_CONFIG, PREMIUM_FILTER_CONFIG, BARGAIN_HUNTER_CONFIG, BOOTSTRAP_CONFIG
+from DB.apartment_service import ApartmentService
 
 async def run_filter(config: FilterConfig, limit: int = 50, verbose: bool = False):
     """Запускает процесс фильтрации"""
@@ -63,7 +67,7 @@ async def show_stats():
 
 async def search_apartments(status: str = None, limit: int = 10, staging: bool = True):
     """Поиск объявлений"""
-    from DB.Models import async_session, Apartment
+    from DB.models import async_session, Apartment
     from sqlalchemy import select, and_
     from sqlalchemy.orm import selectinload
     
@@ -123,7 +127,7 @@ async def search_apartments(status: str = None, limit: int = 10, staging: bool =
 
 async def show_filter_logs(cian_id: str):
     """Показывает логи фильтрации"""
-    from DB.Models import async_session, FilterLog
+    from DB.models import async_session, FilterLog
     from sqlalchemy import select
     
     async with async_session() as session:
@@ -198,7 +202,7 @@ async def analyze_market_prices(rooms: int = None, metro: str = None):
     
     # Топ станций по количеству предложений
     print(f"\n📍 Анализ по станциям метро (топ-10):")
-    from DB.Models import async_session, Apartment, MetroStation
+    from DB.models import async_session, Apartment, MetroStation
     from sqlalchemy import select, func, and_
     
     async with async_session() as session:

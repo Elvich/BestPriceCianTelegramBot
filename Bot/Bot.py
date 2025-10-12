@@ -9,9 +9,9 @@ from datetime import datetime
 # Добавляем путь к родительской директории для импорта config
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from Router import router
+from .router import router
 from config import config
-from ErrorHandlers import check_telegram_connection, NetworkMonitor
+from .error_handlers import check_telegram_connection, NetworkMonitor
 
 # Настройка логирования
 def setup_logging():

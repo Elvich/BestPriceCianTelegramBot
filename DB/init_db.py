@@ -10,7 +10,7 @@ import os
 # Добавляем путь к корневой директории
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from DB.Models import Base, engine
+from DB.models import Base, engine
 from config import config
 
 async def create_tables():

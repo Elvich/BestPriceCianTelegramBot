@@ -9,8 +9,8 @@ from typing import List, Dict, Any, Optional
 from dataclasses import dataclass
 from datetime import datetime
 
-from .ApartmentService import ApartmentService
-from .Models import Apartment
+from .apartment_service import ApartmentService
+from .models import Apartment
 
 
 @dataclass
@@ -300,7 +300,7 @@ class DuplicateFilter(BaseFilter):
             return {'passed': True, 'reason': 'Проверка дубликатов отключена'}
         
         # Проверяем, нет ли уже такой квартиры в production БД
-        from .Models import async_session
+        from .models import async_session
         from sqlalchemy import select, and_
         
         async with async_session() as session:

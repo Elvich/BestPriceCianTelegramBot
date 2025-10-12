@@ -9,8 +9,8 @@ import argparse
 from typing import Optional, List
 from datetime import datetime, timedelta
 
-from DB.ApartmentService import ApartmentService
-from DB.Models import async_session, Apartment, MetroStation
+from DB.apartment_service import ApartmentService
+from DB.models import async_session, Apartment, MetroStation
 from ExcelExporter import ExcelExporter
 
 async def show_statistics():

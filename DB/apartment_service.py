@@ -9,7 +9,7 @@ from sqlalchemy import select, and_, or_, desc
 from sqlalchemy.orm import selectinload
 from datetime import datetime
 
-from .Models import async_session, Apartment, MetroStation, PriceHistory, User, FilterLog
+from .models import async_session, Apartment, MetroStation, PriceHistory, User, FilterLog
 
 
 class ApartmentService:
@@ -283,7 +283,7 @@ class ApartmentService:
             query = select(Apartment)
             
             if metro_station:
-                from .Models import MetroStation
+                from .models import MetroStation
                 query = query.join(MetroStation).where(
                     MetroStation.station_name.ilike(f"%{metro_station}%")
                 )
@@ -367,7 +367,7 @@ class ApartmentService:
             query = select(Apartment)
             
             if metro_station:
-                from .Models import MetroStation
+                from .models import MetroStation
                 query = query.join(MetroStation).where(
                     MetroStation.station_name.ilike(f"%{metro_station}%")
                 )

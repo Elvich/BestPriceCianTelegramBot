@@ -14,6 +14,6 @@
 """
 
 # Экспортируем основные компоненты для удобства импорта
-from .Config import config, Config
+from .config import config, Config
 
 __all__ = ['config', 'Config']

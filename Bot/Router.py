@@ -5,18 +5,18 @@ from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import StatesGroup
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 from aiogram.exceptions import TelegramNetworkError, TelegramBadRequest
-import Kb
+from . import kb
 import sys
 import os
 import logging
 from functools import wraps
 import asyncio
-from ErrorHandlers import network_retry, RetryConfig, NetworkMonitor
+from .error_handlers import network_retry, RetryConfig, NetworkMonitor
 
 # Добавляем путь к родительской директории
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from DB.ApartmentService import ApartmentService
-from ExcelExporter import ExcelExporter
+from DB.apartment_service import ApartmentService
+from utils.excel_exporter import ExcelExporter
 
 # Настройка логирования
 logging.basicConfig(level=logging.INFO)
@@ -87,7 +87,7 @@ async def command_start_handler(message: Message, state: FSMContext):
 📄 /export - Экспорт данных в Excel
 
 Для начала попробуйте команду /search""", 
-        reply_markup=Kb.main_menu
+        reply_markup=kb.main_menu
     )
 
 @router.message(Command("search"))
@@ -120,7 +120,7 @@ async def stats_handler(message: Message):
 async def metro_handler(message: Message):
     """Показывает список станций метро"""
     try:
-        from DB.Models import async_session, MetroStation
+        from DB.models import async_session, MetroStation
         from sqlalchemy import select
         
         async with async_session() as session:
@@ -145,7 +145,7 @@ async def metro_handler(message: Message):
 async def recent_handler(message: Message):
     """Показывает недавно добавленные объявления"""
     try:
-        from DB.Models import async_session, Apartment
+        from DB.models import async_session, Apartment
         from sqlalchemy import select, and_
         from datetime import datetime, timedelta
         
@@ -204,7 +204,7 @@ async def help_callback_handler(callback: CallbackQuery):
 • Фильтрация по цене и локации
 • Экспорт данных в Excel с красивым оформлением"""
 
-    await safe_edit_message(callback, help_text, parse_mode="Markdown", reply_markup=Kb.back_to_menu)
+    await safe_edit_message(callback, help_text, parse_mode="Markdown", reply_markup=kb.back_to_menu)
 
 @router.callback_query(F.data == "back_to_menu")
 @handle_network_errors
@@ -219,7 +219,7 @@ async def back_to_menu_handler(callback: CallbackQuery):
 📊 /stats - Статистика  
 🚇 /metro - Станции метро"""
     
-    await safe_edit_message(callback, text, reply_markup=Kb.main_menu)
+    await safe_edit_message(callback, text, reply_markup=kb.main_menu)
 
 # Обработчики кнопок главного меню
 @router.callback_query(F.data == "search")
@@ -245,18 +245,18 @@ async def stats_callback_handler(callback: CallbackQuery):
 ❌ Неактивных: {stats['inactive_apartments']}
 💰 Средняя цена: {stats['average_price']:,} ₽"""
         
-        await safe_edit_message(callback, response, parse_mode="Markdown", reply_markup=Kb.back_to_menu)
+        await safe_edit_message(callback, response, parse_mode="Markdown", reply_markup=kb.back_to_menu)
         
     except Exception as e:
         logger.error(f"Error in stats_callback_handler: {e}")
-        await safe_edit_message(callback, f"❌ Ошибка при получении статистики: {str(e)}", reply_markup=Kb.back_to_menu)
+        await safe_edit_message(callback, f"❌ Ошибка при получении статистики: {str(e)}", reply_markup=kb.back_to_menu)
 
 @router.callback_query(F.data == "metro")
 @handle_network_errors
 async def metro_callback_handler(callback: CallbackQuery):
     """Станции метро через кнопку"""
     try:
-        from DB.Models import async_session, MetroStation
+        from DB.models import async_session, MetroStation
         from sqlalchemy import select
         
         async with async_session() as session:
@@ -265,7 +265,7 @@ async def metro_callback_handler(callback: CallbackQuery):
             stations = result.scalars().all()
         
         if not stations:
-            await safe_edit_message(callback, "❌ Станции метро не найдены", reply_markup=Kb.back_to_menu)
+            await safe_edit_message(callback, "❌ Станции метро не найдены", reply_markup=kb.back_to_menu)
             return
         
         response = f"🚇 **Станции метро в базе ({len(stations)}):**\n\n"
@@ -276,18 +276,18 @@ async def metro_callback_handler(callback: CallbackQuery):
         if len(stations) > 20:
             response += f"\n\n... и еще {len(stations) - 20} станций"
         
-        await safe_edit_message(callback, response, parse_mode="Markdown", reply_markup=Kb.back_to_menu)
+        await safe_edit_message(callback, response, parse_mode="Markdown", reply_markup=kb.back_to_menu)
         
     except Exception as e:
         logger.error(f"Error in metro_callback_handler: {e}")
-        await safe_edit_message(callback, f"❌ Ошибка при получении списка станций: {str(e)}", reply_markup=Kb.back_to_menu)
+        await safe_edit_message(callback, f"❌ Ошибка при получении списка станций: {str(e)}", reply_markup=kb.back_to_menu)
 
 @router.callback_query(F.data == "recent")
 @handle_network_errors
 async def recent_callback_handler(callback: CallbackQuery):
     """Недавние объявления через кнопку"""
     try:
-        from DB.Models import async_session, Apartment
+        from DB.models import async_session, Apartment
         from sqlalchemy import select, and_
         from datetime import datetime, timedelta
         
@@ -305,7 +305,7 @@ async def recent_callback_handler(callback: CallbackQuery):
             apartments = result.scalars().all()
         
         if not apartments:
-            await safe_edit_message(callback, "📭 Новых объявлений за последние 7 дней не найдено", reply_markup=Kb.back_to_menu)
+            await safe_edit_message(callback, "📭 Новых объявлений за последние 7 дней не найдено", reply_markup=kb.back_to_menu)
             return
         
         response = f"🆕 **Новые объявления за неделю ({len(apartments)}):**\n\n"
@@ -318,11 +318,11 @@ async def recent_callback_handler(callback: CallbackQuery):
             response += f"{apt.title[:50]}...\n"
             response += f"🔗 [Посмотреть]({apt.url})\n\n"
         
-        await safe_edit_message(callback, response, parse_mode="Markdown", reply_markup=Kb.back_to_menu, disable_web_page_preview=True)
+        await safe_edit_message(callback, response, parse_mode="Markdown", reply_markup=kb.back_to_menu, disable_web_page_preview=True)
         
     except Exception as e:
         logger.error(f"Error in recent_callback_handler: {e}")
-        await safe_edit_message(callback, f"❌ Ошибка при получении недавних объявлений: {str(e)}", reply_markup=Kb.back_to_menu)
+        await safe_edit_message(callback, f"❌ Ошибка при получении недавних объявлений: {str(e)}", reply_markup=kb.back_to_menu)
 
 # Вспомогательная функция для поиска
 async def search_apartments_helper(message, is_callback=False):
@@ -339,7 +339,7 @@ async def search_apartments_helper(message, is_callback=False):
                         self.message = message
                     async def answer(self):
                         pass
-                await safe_edit_message(FakeCallback(message), text, reply_markup=Kb.back_to_menu)
+                await safe_edit_message(FakeCallback(message), text, reply_markup=kb.back_to_menu)
             else:
                 await message.answer(text)
             return
@@ -370,7 +370,7 @@ async def search_apartments_helper(message, is_callback=False):
                     self.message = message
                 async def answer(self):
                     pass
-            await safe_edit_message(FakeCallback(message), response, parse_mode="Markdown", reply_markup=Kb.back_to_menu, disable_web_page_preview=True)
+            await safe_edit_message(FakeCallback(message), response, parse_mode="Markdown", reply_markup=kb.back_to_menu, disable_web_page_preview=True)
         else:
             await message.answer(response, parse_mode="Markdown", disable_web_page_preview=True)
         
@@ -383,7 +383,7 @@ async def search_apartments_helper(message, is_callback=False):
                     self.message = message
                 async def answer(self):
                     pass
-            await safe_edit_message(FakeCallback(message), error_text, reply_markup=Kb.back_to_menu)
+            await safe_edit_message(FakeCallback(message), error_text, reply_markup=kb.back_to_menu)
         else:
             await message.answer(error_text)
 
@@ -395,14 +395,14 @@ async def export_command_handler(message: Message):
     await message.answer(
         "📄 **Экспорт данных в Excel**\n\nВыберите тип экспорта:",
         parse_mode="Markdown",
-        reply_markup=Kb.export_menu
+        reply_markup=kb.export_menu
     )
 
 @router.callback_query(F.data == "export_menu")
 @handle_network_errors
 async def export_menu_handler(callback: CallbackQuery):
     """Показывает меню экспорта"""
-    await safe_edit_message(callback, "📄 **Экспорт данных в Excel**\n\nВыберите тип экспорта:", parse_mode="Markdown", reply_markup=Kb.export_menu)
+    await safe_edit_message(callback, "📄 **Экспорт данных в Excel**\n\nВыберите тип экспорта:", parse_mode="Markdown", reply_markup=kb.export_menu)
 
 @router.callback_query(F.data == "export_all")
 @handle_network_errors
@@ -431,11 +431,11 @@ async def export_all_handler(callback: CallbackQuery):
         os.remove(file_path)
         
         # Возвращаемся в меню экспорта
-        await safe_edit_message(callback, "✅ **Файл успешно создан и отправлен!**\n\nВыберите другой тип экспорта или вернитесь в главное меню:", parse_mode="Markdown", reply_markup=Kb.export_menu)
+        await safe_edit_message(callback, "✅ **Файл успешно создан и отправлен!**\n\nВыберите другой тип экспорта или вернитесь в главное меню:", parse_mode="Markdown", reply_markup=kb.export_menu)
         
     except Exception as e:
         logger.error(f"Error in export_all_handler: {e}")
-        await safe_edit_message(callback, f"❌ **Ошибка при создании файла:**\n{str(e)}", parse_mode="Markdown", reply_markup=Kb.export_menu)
+        await safe_edit_message(callback, f"❌ **Ошибка при создании файла:**\n{str(e)}", parse_mode="Markdown", reply_markup=kb.export_menu)
 
 @router.callback_query(F.data == "export_cheap")
 @handle_network_errors
@@ -462,11 +462,11 @@ async def export_cheap_handler(callback: CallbackQuery):
         
         os.remove(file_path)
         
-        await safe_edit_message(callback, "✅ **Файл с дешевыми квартирами отправлен!**\n\nВыберите другой тип экспорта:", parse_mode="Markdown", reply_markup=Kb.export_menu)
+        await safe_edit_message(callback, "✅ **Файл с дешевыми квартирами отправлен!**\n\nВыберите другой тип экспорта:", parse_mode="Markdown", reply_markup=kb.export_menu)
         
     except Exception as e:
         logger.error(f"Error in export_cheap_handler: {e}")
-        await safe_edit_message(callback, f"❌ **Ошибка при создании файла:**\n{str(e)}", parse_mode="Markdown", reply_markup=Kb.export_menu)
+        await safe_edit_message(callback, f"❌ **Ошибка при создании файла:**\n{str(e)}", parse_mode="Markdown", reply_markup=kb.export_menu)
 
 @router.callback_query(F.data == "export_stats")
 @handle_network_errors
@@ -490,11 +490,11 @@ async def export_stats_handler(callback: CallbackQuery):
         
         os.remove(file_path)
         
-        await safe_edit_message(callback, "✅ **Статистика отправлена!**\n\nВыберите другой тип экспорта:", parse_mode="Markdown", reply_markup=Kb.export_menu)
+        await safe_edit_message(callback, "✅ **Статистика отправлена!**\n\nВыберите другой тип экспорта:", parse_mode="Markdown", reply_markup=kb.export_menu)
         
     except Exception as e:
         logger.error(f"Error in export_stats_handler: {e}")
-        await safe_edit_message(callback, f"❌ **Ошибка при создании статистики:**\n{str(e)}", parse_mode="Markdown", reply_markup=Kb.export_menu)
+        await safe_edit_message(callback, f"❌ **Ошибка при создании статистики:**\n{str(e)}", parse_mode="Markdown", reply_markup=kb.export_menu)
 
 @router.callback_query(F.data == "export_top50")
 @handle_network_errors
@@ -518,9 +518,9 @@ async def export_top50_handler(callback: CallbackQuery):
         
         os.remove(file_path)
         
-        await safe_edit_message(callback, "✅ **Топ-50 дешевых квартир отправлен!**\n\nВыберите другой тип экспорта:", parse_mode="Markdown", reply_markup=Kb.export_menu)
+        await safe_edit_message(callback, "✅ **Топ-50 дешевых квартир отправлен!**\n\nВыберите другой тип экспорта:", parse_mode="Markdown", reply_markup=kb.export_menu)
         
     except Exception as e:
         logger.error(f"Error in export_top50_handler: {e}")
-        await safe_edit_message(callback, f"❌ **Ошибка при создании топ-50:**\n{str(e)}", parse_mode="Markdown", reply_markup=Kb.export_menu)
+        await safe_edit_message(callback, f"❌ **Ошибка при создании топ-50:**\n{str(e)}", parse_mode="Markdown", reply_markup=kb.export_menu)
     

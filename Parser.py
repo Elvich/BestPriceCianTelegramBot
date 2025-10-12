@@ -2,7 +2,7 @@ import requests
 from bs4 import BeautifulSoup
 import time
 from tqdm import tqdm
-from FileSaver import Saver
+from utils.file_saver import Saver
 from config import config
  
 class Parser:
