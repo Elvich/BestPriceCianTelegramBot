@@ -3,9 +3,6 @@ import csv
 import asyncio
 import sys
 
-# Добавляем путь к родительской директории
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
 from DB.apartment_service import ApartmentService
 
 class Saver:
