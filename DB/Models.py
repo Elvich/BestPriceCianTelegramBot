@@ -44,9 +44,14 @@ class Apartment(Base):
     filter_reason: Mapped[str] = mapped_column(Text, nullable=True)  # Причина отклонения
     processed_at: Mapped[datetime] = mapped_column(DateTime, nullable=True)  # Время обработки фильтрами
     
+    # Поля для системы уведомлений
+    is_new: Mapped[bool] = mapped_column(Boolean, default=True)  # Новая квартира (для уведомлений)
+    approved_at: Mapped[datetime] = mapped_column(DateTime, nullable=True)  # Время одобрения (перехода в production)
+    
     # Связи
     metro_stations: Mapped[list["MetroStation"]] = relationship("MetroStation", back_populates="apartment", cascade="all, delete-orphan")
     price_history: Mapped[list["PriceHistory"]] = relationship("PriceHistory", back_populates="apartment", cascade="all, delete-orphan")
+    user_reads: Mapped[list["UserApartmentRead"]] = relationship("UserApartmentRead", back_populates="apartment", cascade="all, delete-orphan")
 
 class MetroStation(Base):
     """Модель для хранения информации о станциях метро"""
@@ -103,6 +108,32 @@ class FilterLog(Base):
     result: Mapped[str] = mapped_column(String(20), nullable=False)  # 'pass', 'fail'
     reason: Mapped[str] = mapped_column(Text, nullable=True)
     executed_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+class UserNotification(Base):
+    """Уведомления для пользователей о новых квартирах"""
+    __tablename__ = "user_notifications"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    telegram_id: Mapped[int] = mapped_column(BigInteger, nullable=False, index=True)
+    apartment_count: Mapped[int] = mapped_column(Integer, nullable=False)  # Количество новых квартир
+    message: Mapped[str] = mapped_column(Text, nullable=False)  # Текст уведомления
+    is_sent: Mapped[bool] = mapped_column(Boolean, default=False)  # Отправлено ли уведомление
+    is_read: Mapped[bool] = mapped_column(Boolean, default=False)  # Прочитано ли пользователем
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    sent_at: Mapped[datetime] = mapped_column(DateTime, nullable=True)  # Время отправки
+    read_at: Mapped[datetime] = mapped_column(DateTime, nullable=True)  # Время прочтения
+
+class UserApartmentRead(Base):
+    """Отслеживание просмотренных пользователем квартир"""
+    __tablename__ = "user_apartment_reads"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    telegram_id: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    apartment_id: Mapped[int] = mapped_column(Integer, ForeignKey("apartments.id"), nullable=False)
+    read_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    
+    # Связи
+    apartment: Mapped["Apartment"] = relationship("Apartment", back_populates="user_reads")
 
 # Устаревшая модель - оставляем для совместимости
 class Expense(Base):

@@ -10,7 +10,8 @@ from dataclasses import dataclass
 from datetime import datetime
 
 from .apartment_service import ApartmentService
-from .models import Apartment
+from .Models import Apartment
+from .notification_service import NotificationService
 
 
 @dataclass
@@ -300,7 +301,7 @@ class DuplicateFilter(BaseFilter):
             return {'passed': True, 'reason': 'Проверка дубликатов отключена'}
         
         # Проверяем, нет ли уже такой квартиры в production БД
-        from .models import async_session
+        from .Models import async_session
         from sqlalchemy import select, and_
         
         async with async_session() as session:
@@ -396,6 +397,16 @@ class FilterService:
             except Exception as e:
                 print(f"Ошибка при обработке квартиры {apartment.cian_id}: {e}")
                 continue
+        
+        # После обработки всех квартир, создаем уведомления о новых одобренных
+        if stats['approved'] > 0:
+            try:
+                notifications_created = await NotificationService.create_notifications_for_new_apartments(
+                    stats['approved']
+                )
+                print(f"📱 Создано {notifications_created} уведомлений о {stats['approved']} новых квартирах")
+            except Exception as e:
+                print(f"⚠️ Ошибка при создании уведомлений: {e}")
         
         return stats
     

@@ -10,7 +10,7 @@ import os
 # Добавляем путь к корневой директории
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from DB.models import Base, engine
+from DB.Models import Base, engine
 from config import config
 
 async def create_tables():
@@ -30,9 +30,12 @@ async def create_tables():
         print("   - price_history (история изменения цен)")
         print("   - filter_logs (логи фильтрации)")
         print("   - users (пользователи бота)")
+        print("   - user_notifications (уведомления о новых квартирах)")
+        print("   - user_apartment_reads (отметки о просмотре)")
         print("   - expenses (устаревшая таблица)")
         print("\n💡 Теперь одна БД содержит и staging, и production данные")
         print("   Используйте поле is_staging для разделения")
+        print("📱 Добавлена система уведомлений о новых квартирах")
         
     except Exception as e:
         print(f"❌ Ошибка при создании таблиц: {e}")
@@ -61,8 +64,50 @@ async def drop_tables():
     finally:
         await engine.dispose()
 
+async def recreate_tables():
+    """Пересоздает все таблицы с нуля"""
+    try:
+        print("🔄 ПЕРЕСОЗДАНИЕ БАЗЫ ДАННЫХ")
+        print("=" * 50)
+        
+        print("🗑️  Удаляем старые таблицы...")
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.drop_all)
+        print("✅ Старые таблицы удалены")
+        
+        print("\n🔧 Создаем новые таблицы с системой уведомлений...")
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+        
+        print("✅ Новые таблицы созданы!")
+        print("\n📋 Созданные таблицы:")
+        print("   - apartments (объявления с полями уведомлений)")
+        print("   - metro_stations (станции метро)")
+        print("   - price_history (история изменения цен)")
+        print("   - filter_logs (логи фильтрации)")
+        print("   - users (пользователи бота)")
+        print("   - user_notifications (📱 уведомления)")
+        print("   - user_apartment_reads (👁️ отметки просмотра)")
+        
+        print("\n🎉 База данных готова к работе с системой уведомлений!")
+        
+    except Exception as e:
+        print(f"❌ Ошибка при пересоздании таблиц: {e}")
+        sys.exit(1)
+    finally:
+        await engine.dispose()
+
 if __name__ == "__main__":
-    if len(sys.argv) > 1 and sys.argv[1] == "drop":
-        asyncio.run(drop_tables())
+    if len(sys.argv) > 1:
+        command = sys.argv[1].lower()
+        if command == "drop":
+            asyncio.run(drop_tables())
+        elif command == "recreate":
+            asyncio.run(recreate_tables())
+        else:
+            print("Доступные команды:")
+            print("  python init_db.py          - создать таблицы")
+            print("  python init_db.py drop     - удалить таблицы")
+            print("  python init_db.py recreate - пересоздать все таблицы")
     else:
         asyncio.run(create_tables())

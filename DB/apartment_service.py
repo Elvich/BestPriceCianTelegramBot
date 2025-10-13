@@ -9,7 +9,7 @@ from sqlalchemy import select, and_, or_, desc
 from sqlalchemy.orm import selectinload
 from datetime import datetime
 
-from .models import async_session, Apartment, MetroStation, PriceHistory, User, FilterLog
+from .Models import async_session, Apartment, MetroStation, PriceHistory, User, FilterLog
 
 
 class ApartmentService:
@@ -283,7 +283,7 @@ class ApartmentService:
             query = select(Apartment)
             
             if metro_station:
-                from .models import MetroStation
+                from .Models import MetroStation
                 query = query.join(MetroStation).where(
                     MetroStation.station_name.ilike(f"%{metro_station}%")
                 )
@@ -367,7 +367,7 @@ class ApartmentService:
             query = select(Apartment)
             
             if metro_station:
-                from .models import MetroStation
+                from .Models import MetroStation
                 query = query.join(MetroStation).where(
                     MetroStation.station_name.ilike(f"%{metro_station}%")
                 )
@@ -675,6 +675,8 @@ class ApartmentService:
                 # Просто переключаем статус staging квартиры в production
                 staging_apartment.is_staging = False
                 staging_apartment.is_active = True
+                staging_apartment.is_new = True  # Помечаем как новую для уведомлений
+                staging_apartment.approved_at = datetime.utcnow()  # Время одобрения
                 staging_apartment.last_updated = datetime.utcnow()
                 
                 # Мержим изменения в текущую сессию

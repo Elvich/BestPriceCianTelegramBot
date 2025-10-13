@@ -16,7 +16,7 @@ from openpyxl.utils.dataframe import dataframe_to_rows
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from DB.apartment_service import ApartmentService
-from DB.models import Apartment
+from DB.Models import Apartment
 
 
 class ExcelExporter:

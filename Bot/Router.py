@@ -5,18 +5,21 @@ from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import StatesGroup
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 from aiogram.exceptions import TelegramNetworkError, TelegramBadRequest
-from . import kb
+from Bot import Kb as kb
 import sys
 import os
 import logging
 from functools import wraps
 import asyncio
-from .error_handlers import network_retry, RetryConfig, NetworkMonitor
+from Bot.error_handlers import network_retry, RetryConfig, NetworkMonitor
 
 # Добавляем путь к родительской директории
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from DB.apartment_service import ApartmentService
+from DB.notification_service import NotificationService
+from DB.user_service import UserService
 from utils.excel_exporter import ExcelExporter
+from Bot.notification_sender import NotificationSender
 
 # Настройка логирования
 logging.basicConfig(level=logging.INFO)
@@ -27,12 +30,24 @@ router = Router()
 # Конфигурация для повторных попыток
 RETRY_CONFIG = RetryConfig(max_retries=3, base_delay=1.0, exponential_backoff=True)
 
-# Декоратор для обработки сетевых ошибок
+# Декоратор для обработки сетевых ошибок и автоматического создания пользователей
 def handle_network_errors(func):
     @wraps(func)
     @network_retry(config=RETRY_CONFIG)
     async def wrapper(*args, **kwargs):
         try:
+            # Автоматически создаем/обновляем пользователя при каждом взаимодействии
+            user_obj = None
+            if args:
+                if hasattr(args[0], 'from_user'):  # Message или CallbackQuery
+                    user = args[0].from_user
+                    user_obj = await UserService.get_or_create_user(
+                        telegram_id=user.id,
+                        username=user.username,
+                        first_name=user.first_name,
+                        last_name=user.last_name
+                    )
+                    
             return await func(*args, **kwargs)
         except Exception as e:
             logger.error(f"Error in {func.__name__}: {e}")
@@ -74,19 +89,31 @@ async def safe_edit_message(callback, text, **kwargs):
 @router.message(CommandStart())
 @handle_network_errors
 async def command_start_handler(message: Message, state: FSMContext):
+    user_id = message.from_user.id
+    
+    # Отмечаем уведомления как прочитанные при входе в бота
+    await NotificationService.mark_notifications_read(user_id)
+    
+    # Проверяем есть ли новые квартиры
+    new_count = len(await NotificationService.get_new_apartments_for_user(user_id, limit=1))
+    new_indicator = f"\n\n🆕 У вас есть {new_count} новых квартир!" if new_count > 0 else ""
+    
     await message.answer(
         text=f"""Привет, {message.from_user.full_name}! 🏠
 
 Я бот для поиска квартир на Циан по выгодным ценам.
 
+📱 **Система уведомлений активна!**
+Как только появятся новые выгодные квартиры, вы получите уведомление.
+
 Доступные команды:
 🔍 /search - Поиск квартир
 📊 /stats - Статистика базы данных
 🚇 /metro - Список станций метро
-🆕 /recent - Недавно добавленные объявления
+🆕 /recent - Новые квартиры для вас
 📄 /export - Экспорт данных в Excel
 
-Для начала попробуйте команду /search""", 
+Для начала попробуйте команду /search{new_indicator}""", 
         reply_markup=kb.main_menu
     )
 
@@ -120,7 +147,7 @@ async def stats_handler(message: Message):
 async def metro_handler(message: Message):
     """Показывает список станций метро"""
     try:
-        from DB.models import async_session, MetroStation
+        from DB.Models import async_session, MetroStation
         from sqlalchemy import select
         
         async with async_session() as session:
@@ -145,7 +172,7 @@ async def metro_handler(message: Message):
 async def recent_handler(message: Message):
     """Показывает недавно добавленные объявления"""
     try:
-        from DB.models import async_session, Apartment
+        from DB.Models import async_session, Apartment
         from sqlalchemy import select, and_
         from datetime import datetime, timedelta
         
@@ -256,7 +283,7 @@ async def stats_callback_handler(callback: CallbackQuery):
 async def metro_callback_handler(callback: CallbackQuery):
     """Станции метро через кнопку"""
     try:
-        from DB.models import async_session, MetroStation
+        from DB.Models import async_session, MetroStation
         from sqlalchemy import select
         
         async with async_session() as session:
@@ -285,38 +312,46 @@ async def metro_callback_handler(callback: CallbackQuery):
 @router.callback_query(F.data == "recent")
 @handle_network_errors
 async def recent_callback_handler(callback: CallbackQuery):
-    """Недавние объявления через кнопку"""
+    """Новые квартиры для пользователя (система уведомлений)"""
     try:
-        from DB.models import async_session, Apartment
-        from sqlalchemy import select, and_
-        from datetime import datetime, timedelta
+        user_id = callback.from_user.id
         
-        since_date = datetime.utcnow() - timedelta(days=7)
+        # Получаем новые квартиры для пользователя
+        new_apartments = await NotificationService.get_new_apartments_for_user(user_id, limit=10)
         
-        async with async_session() as session:
-            query = select(Apartment).where(
-                and_(
-                    Apartment.first_seen >= since_date,
-                    Apartment.is_active == True
-                )
-            ).order_by(Apartment.first_seen.desc()).limit(5)
-            
-            result = await session.execute(query)
-            apartments = result.scalars().all()
-        
-        if not apartments:
-            await safe_edit_message(callback, "📭 Новых объявлений за последние 7 дней не найдено", reply_markup=kb.back_to_menu)
+        if not new_apartments:
+            await safe_edit_message(callback, 
+                "📭 Новых квартир пока нет!\n\n"
+                "Как только появятся выгодные предложения, вы получите уведомление.",
+                reply_markup=kb.back_to_menu)
             return
         
-        response = f"🆕 **Новые объявления за неделю ({len(apartments)}):**\n\n"
+        # Отмечаем уведомления как прочитанные
+        await NotificationService.mark_notifications_read(user_id)
         
-        for apt in apartments:
+        response = f"🆕 **Новые квартиры для вас ({len(new_apartments)}):**\n\n"
+        
+        apartment_ids = []
+        for i, apt in enumerate(new_apartments, 1):
             price_str = f"{apt.price:,} ₽" if apt.price else "цена не указана"
-            date_str = apt.first_seen.strftime("%d.%m.%Y")
+            price_per_sqm_str = f" ({apt.price_per_sqm:,} ₽/м²)" if apt.price_per_sqm else ""
             
-            response += f"**{date_str} - {price_str}**\n"
-            response += f"{apt.title[:50]}...\n"
-            response += f"🔗 [Посмотреть]({apt.url})\n\n"
+            # Информация о метро
+            metro_info = []
+            for metro in apt.metro_stations[:2]:
+                metro_info.append(f"{metro.station_name} {metro.travel_time}")
+            metro_str = f"\n🚇 {', '.join(metro_info)}" if metro_info else ""
+            
+            response += f"**{i}. {price_str}{price_per_sqm_str}**\n"
+            response += f"{apt.title}\n"
+            response += f"🔗 [Посмотреть на Cian]({apt.url})"
+            response += metro_str
+            response += "\n\n"
+            
+            apartment_ids.append(apt.id)
+        
+        # Отмечаем квартиры как просмотренные пользователем
+        await NotificationService.mark_apartments_as_viewed(user_id, apartment_ids)
         
         await safe_edit_message(callback, response, parse_mode="Markdown", reply_markup=kb.back_to_menu, disable_web_page_preview=True)
         
