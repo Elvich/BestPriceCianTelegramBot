@@ -67,7 +67,7 @@ async def show_stats():
 
 async def search_apartments(status: str = None, limit: int = 10, staging: bool = True):
     """Поиск объявлений"""
-    from DB.models import async_session, Apartment
+    from DB.Models import async_session, Apartment
     from sqlalchemy import select, and_
     from sqlalchemy.orm import selectinload
     
@@ -127,7 +127,7 @@ async def search_apartments(status: str = None, limit: int = 10, staging: bool =
 
 async def show_filter_logs(cian_id: str):
     """Показывает логи фильтрации"""
-    from DB.models import async_session, FilterLog
+    from DB.Models import async_session, FilterLog
     from sqlalchemy import select
     
     async with async_session() as session:
@@ -202,7 +202,7 @@ async def analyze_market_prices(rooms: int = None, metro: str = None):
     
     # Топ станций по количеству предложений
     print(f"\n📍 Анализ по станциям метро (топ-10):")
-    from DB.models import async_session, Apartment, MetroStation
+    from DB.Models import async_session, Apartment, MetroStation
     from sqlalchemy import select, func, and_
     
     async with async_session() as session:

@@ -9,9 +9,10 @@ from datetime import datetime
 # Добавляем путь к родительской директории для импорта config
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from .router import router
+from Bot.router import router
 from config import config
-from .error_handlers import check_telegram_connection, NetworkMonitor
+from Bot.error_handlers import check_telegram_connection, NetworkMonitor
+from Bot.notification_sender import NotificationSender
 
 # Настройка логирования
 def setup_logging():
@@ -61,8 +62,12 @@ async def main():
         # Создаем монитор сети
         network_monitor = NetworkMonitor(bot)
         
-        # Сохраняем ссылку на монитор в диспетчере для использования в роутерах
+        # Создаем сервис уведомлений
+        notification_sender = NotificationSender(bot)
+        
+        # Сохраняем ссылки в диспетчере для использования в роутерах
         dp['network_monitor'] = network_monitor
+        dp['notification_sender'] = notification_sender
         
         # Добавляем глобальную обработку ошибок для диспетчера
         @dp.error()
@@ -77,8 +82,32 @@ async def main():
             
             return True  # Говорим диспетчеру, что ошибка обработана
         
+        # Создаем фоновую задачу для отправки уведомлений
+        async def notification_task():
+            """Фоновая задача для отправки уведомлений каждые 30 секунд"""
+            while True:
+                try:
+                    await notification_sender.send_pending_notifications(max_notifications=50)
+                    await asyncio.sleep(30)  # Проверяем каждые 30 секунд
+                except Exception as e:
+                    logger.error(f"Ошибка в фоновой задаче уведомлений: {e}")
+                    await asyncio.sleep(60)  # При ошибке ждем минуту
+        
+        # Запускаем фоновую задачу
+        notification_task_handle = asyncio.create_task(notification_task())
+        
         logger.info("🚀 Бот готов к работе. Начинаем polling...")
-        await dp.start_polling(bot, skip_updates=True)
+        logger.info("📱 Запущена фоновая задача отправки уведомлений")
+        
+        try:
+            await dp.start_polling(bot, skip_updates=True)
+        finally:
+            # Останавливаем фоновую задачу при завершении
+            notification_task_handle.cancel()
+            try:
+                await notification_task_handle
+            except asyncio.CancelledError:
+                pass
         
     except ValueError as e:
         logger.error(f"❌ Ошибка конфигурации: {e}")

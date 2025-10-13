@@ -10,7 +10,7 @@ from typing import Optional, List
 from datetime import datetime, timedelta
 
 from DB.apartment_service import ApartmentService
-from DB.models import async_session, Apartment, MetroStation
+from DB.Models import async_session, Apartment, MetroStation
 from utils.excel_exporter import ExcelExporter
 
 async def show_statistics():
