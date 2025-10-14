@@ -5,21 +5,22 @@ from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import StatesGroup
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 from aiogram.exceptions import TelegramNetworkError, TelegramBadRequest
-from Bot import Kb as kb
+import Kb as kb
 import sys
 import os
 import logging
 from functools import wraps
 import asyncio
-from Bot.error_handlers import network_retry, RetryConfig, NetworkMonitor
+from error_handlers import network_retry, RetryConfig, NetworkMonitor
 
 # Добавляем путь к родительской директории
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from DB.apartment_service import ApartmentService
 from DB.notification_service import NotificationService
 from DB.user_service import UserService
+from DB.reaction_service import ReactionService
 from utils.excel_exporter import ExcelExporter
-from Bot.notification_sender import NotificationSender
+from notification_sender import NotificationSender
 
 # Настройка логирования
 logging.basicConfig(level=logging.INFO)
@@ -111,6 +112,8 @@ async def command_start_handler(message: Message, state: FSMContext):
 📊 /stats - Статистика базы данных
 🚇 /metro - Список станций метро
 🆕 /recent - Новые квартиры для вас
+❤️ /liked - Ваши лайки
+👎 /disliked - Скрытые квартиры
 📄 /export - Экспорт данных в Excel
 
 Для начала попробуйте команду /search{new_indicator}""", 
@@ -219,13 +222,22 @@ async def help_callback_handler(callback: CallbackQuery):
 📊 /stats - Статистика базы данных  
 🚇 /metro - Список доступных станций метро
 🆕 /recent - Недавно добавленные объявления
-📄 /export - Экспорт данных в Excel формат
+❤️ /liked - Ваши любимые квартиры
+👎 /disliked - Скрытые квартиры
+�📄 /export - Экспорт данных в Excel формат
+
+**Система лайков и дизлайков:**
+❤️ **Лайк** - добавить квартиру в избранное
+👎 **Дизлайк** - скрыть из результатов поиска
+Нажмите повторно, чтобы отменить реакцию
 
 **Как это работает:**
 Бот парсит объявления с Cian.ru и сохраняет их в базу данных. Вы можете искать квартиры по различным критериям и отслеживать изменения цен.
 
 **Возможности:**
 • Поиск без дублирования объявлений
+• Персональные лайки и дизлайки
+• Автоматическое исключение скрытых квартир
 • Отслеживание истории изменения цен
 • Информация о близости к станциям метро
 • Фильтрация по цене и локации
@@ -363,7 +375,21 @@ async def recent_callback_handler(callback: CallbackQuery):
 async def search_apartments_helper(message, is_callback=False):
     """Вспомогательная функция для логики поиска"""
     try:
-        apartments = await ApartmentService.get_apartments(limit=5, only_active=True, only_production=True)
+        # Определяем user_id из сообщения
+        user_id = None
+        if hasattr(message, 'from_user'):
+            user_id = message.from_user.id
+        elif hasattr(message, 'chat'):
+            # Для случаев когда это callback
+            user_id = message.chat.id
+        
+        # Получаем квартиры, исключая дизлайкнутые пользователем
+        apartments = await ApartmentService.get_apartments(
+            limit=5, 
+            only_active=True, 
+            only_production=True,
+            exclude_disliked_for_user=user_id if user_id else None
+        )
         
         if not apartments:
             text = "❌ Объявления не найдены. Возможно, база данных пуста."
@@ -381,6 +407,7 @@ async def search_apartments_helper(message, is_callback=False):
         
         response = "🔍 **Топ-5 самых выгодных предложений:**\n\n"
         
+        # Отправляем каждую квартиру отдельным сообщением с кнопками реакций
         for i, apt in enumerate(apartments, 1):
             price_str = f"{apt.price:,} ₽" if apt.price else "цена не указана"
             price_per_sqm_str = f" ({apt.price_per_sqm:,} ₽/м²)" if apt.price_per_sqm else ""
@@ -392,12 +419,32 @@ async def search_apartments_helper(message, is_callback=False):
             
             address_str = f"\n📍 {apt.address}" if apt.address else ""
             
-            response += f"**{i}. {price_str}{price_per_sqm_str}**\n"
-            response += f"{apt.title}\n"
-            response += f"🔗 [Посмотреть на Cian]({apt.url})"
-            response += metro_str
-            response += address_str
-            response += "\n\n"
+            apt_text = f"**{i}. {price_str}{price_per_sqm_str}**\n"
+            apt_text += f"{apt.title}\n"
+            apt_text += f"🔗 [Посмотреть на Cian]({apt.url})"
+            apt_text += metro_str
+            apt_text += address_str
+            
+            # Получаем текущую реакцию пользователя на эту квартиру
+            current_reaction = None
+            if user_id:
+                current_reaction = await ReactionService.get_user_reaction(user_id, apt.id)
+            
+            # Создаем клавиатуру с кнопками реакций
+            reaction_keyboard = kb.create_apartment_reaction_keyboard(apt.id, current_reaction)
+            
+            # Отправляем квартиру как отдельное сообщение с кнопками
+            await message.answer(
+                apt_text,
+                parse_mode="Markdown",
+                reply_markup=reaction_keyboard,
+                disable_web_page_preview=True
+            )
+        
+        # Отправляем итоговое сообщение
+        final_text = f"✅ Показано {len(apartments)} квартир\n\n"
+        final_text += "💡 Используйте кнопки ❤️ и 👎 для лайков/дизлайков\n"
+        final_text += "Дизлайкнутые квартиры больше не будут показываться в поиске."
         
         if is_callback:
             class FakeCallback:
@@ -405,9 +452,9 @@ async def search_apartments_helper(message, is_callback=False):
                     self.message = message
                 async def answer(self):
                     pass
-            await safe_edit_message(FakeCallback(message), response, parse_mode="Markdown", reply_markup=kb.back_to_menu, disable_web_page_preview=True)
+            await safe_edit_message(FakeCallback(message), final_text, parse_mode="Markdown", reply_markup=kb.back_to_menu)
         else:
-            await message.answer(response, parse_mode="Markdown", disable_web_page_preview=True)
+            await message.answer(final_text, parse_mode="Markdown", reply_markup=kb.main_menu)
         
     except Exception as e:
         logger.error(f"Error in search_apartments_helper: {e}")
@@ -558,4 +605,267 @@ async def export_top50_handler(callback: CallbackQuery):
     except Exception as e:
         logger.error(f"Error in export_top50_handler: {e}")
         await safe_edit_message(callback, f"❌ **Ошибка при создании топ-50:**\n{str(e)}", parse_mode="Markdown", reply_markup=kb.export_menu)
+
+# ===== ОБРАБОТЧИКИ РЕАКЦИЙ =====
+
+@router.callback_query(F.data.startswith("reaction_"))
+@handle_network_errors
+async def reaction_handler(callback: CallbackQuery):
+    """Обработчик кнопок лайка/дизлайка"""
+    user_id = callback.from_user.id
+    
+    # Парсим callback_data: "reaction_like_123" или "reaction_dislike_123"
+    try:
+        parts = callback.data.split('_')
+        reaction_type = parts[1]  # 'like' или 'dislike'
+        apartment_id = int(parts[2])
+    except (IndexError, ValueError):
+        await callback.answer("❌ Ошибка в данных", show_alert=True)
+        return
+    
+    try:
+        # Переключаем реакцию
+        result = await ReactionService.toggle_reaction(user_id, apartment_id, reaction_type)
+        
+        # Формируем ответ пользователю
+        if result['action'] == 'added':
+            if reaction_type == 'like':
+                message = "❤️ Квартира добавлена в избранное!"
+            else:
+                message = "👎 Квартира скрыта из результатов поиска"
+        elif result['action'] == 'removed':
+            if reaction_type == 'like':
+                message = "💔 Квартира удалена из избранного"
+            else:
+                message = "✅ Квартира снова будет показываться"
+        elif result['action'] == 'changed':
+            if reaction_type == 'like':
+                message = "❤️ Изменено на лайк!"
+            else:
+                message = "👎 Изменено на дизлайк!"
+        else:
+            message = "✅ Реакция обновлена"
+        
+        await callback.answer(message, show_alert=True)
+        
+        # Обновляем клавиатуру с новой реакцией
+        new_reaction = result.get('reaction') if result['action'] != 'removed' else None
+        new_keyboard = kb.create_apartment_reaction_keyboard(apartment_id, new_reaction)
+        
+        try:
+            await callback.message.edit_reply_markup(reply_markup=new_keyboard)
+        except TelegramBadRequest:
+            pass  # Игнорируем если сообщение не изменилось
+            
+    except Exception as e:
+        logger.error(f"Error in reaction_handler: {e}")
+        await callback.answer("❌ Ошибка при обработке реакции", show_alert=True)
+
+@router.callback_query(F.data == "my_likes")
+@handle_network_errors  
+async def my_likes_handler(callback: CallbackQuery):
+    """Показать лайкнутые квартиры"""
+    user_id = callback.from_user.id
+    
+    try:
+        liked_apartments = await ReactionService.get_user_liked_apartments(user_id, limit=10)
+        
+        if not liked_apartments:
+            await safe_edit_message(
+                callback,
+                "❤️ **Ваши лайки**\n\n"
+                "У вас пока нет лайкнутых квартир.\n"
+                "Используйте кнопку ❤️ при просмотре квартир, чтобы добавить их в избранное.",
+                parse_mode="Markdown",
+                reply_markup=kb.back_to_menu
+            )
+            return
+        
+        response = "❤️ **Ваши любимые квартиры:**\n\n"
+        
+        for i, apt in enumerate(liked_apartments, 1):
+            price_str = f"{apt.price:,} ₽" if apt.price else "цена не указана"
+            price_per_sqm_str = f" ({apt.price_per_sqm:,} ₽/м²)" if apt.price_per_sqm else ""
+            
+            response += f"**{i}. {price_str}**{price_per_sqm_str}\n"
+            response += f"_{apt.title[:80]}{'...' if len(apt.title) > 80 else ''}_\n"
+            
+            # Добавляем информацию о метро
+            metro_info = [station.station_name for station in apt.metro_stations[:2]]
+            metro_str = f"🚇 {', '.join(metro_info)}" if metro_info else ""
+            if metro_str:
+                response += f"{metro_str}\n"
+            
+            response += f"[Открыть на Cian]({apt.url})\n\n"
+            
+            if len(response) > 3500:  # Ограничиваем размер сообщения
+                response += "...\n\n"
+                break
+        
+        # Показываем статистику
+        summary = await ReactionService.get_user_reactions_summary(user_id)
+        response += f"📊 Всего лайков: {summary['likes']}"
+        
+        await safe_edit_message(
+            callback,
+            response,
+            parse_mode="Markdown",
+            reply_markup=kb.back_to_menu,
+            disable_web_page_preview=True
+        )
+        
+    except Exception as e:
+        logger.error(f"Error in my_likes_handler: {e}")
+        await safe_edit_message(callback, "❌ Ошибка при загрузке лайков", reply_markup=kb.back_to_menu)
+
+@router.callback_query(F.data == "my_dislikes")
+@handle_network_errors
+async def my_dislikes_handler(callback: CallbackQuery):
+    """Показать дизлайкнутые квартиры"""
+    user_id = callback.from_user.id
+    
+    try:
+        disliked_apartments = await ReactionService.get_user_disliked_apartments(user_id, limit=10)
+        
+        if not disliked_apartments:
+            await safe_edit_message(
+                callback,
+                "👎 **Скрытые квартиры**\n\n"
+                "У вас пока нет скрытых квартир.\n"
+                "Используйте кнопку 👎 при просмотре квартир, чтобы исключить их из результатов поиска.",
+                parse_mode="Markdown",
+                reply_markup=kb.back_to_menu
+            )
+            return
+        
+        response = "👎 **Скрытые квартиры:**\n\n"
+        response += "_(Эти квартиры не показываются в результатах поиска)_\n\n"
+        
+        for i, apt in enumerate(disliked_apartments, 1):
+            price_str = f"{apt.price:,} ₽" if apt.price else "цена не указана"
+            price_per_sqm_str = f" ({apt.price_per_sqm:,} ₽/м²)" if apt.price_per_sqm else ""
+            
+            response += f"**{i}. {price_str}**{price_per_sqm_str}\n"
+            response += f"_{apt.title[:80]}{'...' if len(apt.title) > 80 else ''}_\n"
+            
+            # Добавляем информацию о метро
+            metro_info = [station.station_name for station in apt.metro_stations[:2]]
+            metro_str = f"🚇 {', '.join(metro_info)}" if metro_info else ""
+            if metro_str:
+                response += f"{metro_str}\n"
+            
+            response += f"[Открыть на Cian]({apt.url})\n\n"
+            
+            if len(response) > 3500:  # Ограничиваем размер сообщения
+                response += "...\n\n"
+                break
+        
+        # Показываем статистику
+        summary = await ReactionService.get_user_reactions_summary(user_id)
+        response += f"📊 Всего дизлайков: {summary['dislikes']}"
+        
+        await safe_edit_message(
+            callback,
+            response,
+            parse_mode="Markdown",
+            reply_markup=kb.back_to_menu,
+            disable_web_page_preview=True
+        )
+        
+    except Exception as e:
+        logger.error(f"Error in my_dislikes_handler: {e}")
+        await safe_edit_message(callback, "❌ Ошибка при загрузке дизлайков", reply_markup=kb.back_to_menu)
+
+@router.callback_query(F.data.startswith("remove_reaction_"))
+@handle_network_errors
+async def remove_reaction_handler(callback: CallbackQuery):
+    """Удаление реакции из списка лайков/дизлайков"""
+    user_id = callback.from_user.id
+    
+    try:
+        apartment_id = int(callback.data.split('_')[2])
+        
+        # Удаляем реакцию
+        removed = await ReactionService.remove_reaction(user_id, apartment_id)
+        
+        if removed:
+            await callback.answer("✅ Реакция удалена", show_alert=True)
+            # Можно обновить список, но пока просто уведомляем
+        else:
+            await callback.answer("❌ Реакция не найдена", show_alert=True)
+            
+    except Exception as e:
+        logger.error(f"Error in remove_reaction_handler: {e}")
+        await callback.answer("❌ Ошибка при удалении реакции", show_alert=True)
+
+# Команды для быстрого доступа к реакциям
+@router.message(Command("liked"))
+@handle_network_errors
+async def liked_command_handler(message: Message):
+    """Команда для просмотра лайкнутых квартир"""
+    user_id = message.from_user.id
+    
+    try:
+        liked_apartments = await ReactionService.get_user_liked_apartments(user_id, limit=5)
+        
+        if not liked_apartments:
+            await message.answer(
+                "❤️ **Ваши лайки**\n\n"
+                "У вас пока нет лайкнутых квартир.\n"
+                "Используйте /search для поиска квартир.",
+                parse_mode="Markdown"
+            )
+            return
+        
+        response = "❤️ **Ваши любимые квартиры (топ-5):**\n\n"
+        
+        for i, apt in enumerate(liked_apartments, 1):
+            price_str = f"{apt.price:,} ₽" if apt.price else "цена не указана"
+            response += f"{i}. **{price_str}**\n"
+            response += f"_{apt.title[:60]}{'...' if len(apt.title) > 60 else ''}_\n"
+            response += f"[Открыть]({apt.url})\n\n"
+        
+        summary = await ReactionService.get_user_reactions_summary(user_id)
+        response += f"📊 Всего лайков: {summary['likes']}"
+        
+        await message.answer(response, parse_mode="Markdown", disable_web_page_preview=True)
+        
+    except Exception as e:
+        logger.error(f"Error in liked_command_handler: {e}")
+        await message.answer("❌ Ошибка при загрузке лайков")
+
+@router.message(Command("disliked"))
+@handle_network_errors
+async def disliked_command_handler(message: Message):
+    """Команда для просмотра дизлайкнутых квартир"""
+    user_id = message.from_user.id
+    
+    try:
+        disliked_apartments = await ReactionService.get_user_disliked_apartments(user_id, limit=5)
+        
+        if not disliked_apartments:
+            await message.answer(
+                "👎 **Скрытые квартиры**\n\n"
+                "У вас пока нет скрытых квартир.",
+                parse_mode="Markdown"
+            )
+            return
+        
+        response = "👎 **Скрытые квартиры (топ-5):**\n\n"
+        response += "_(Эти квартиры не показываются в поиске)_\n\n"
+        
+        for i, apt in enumerate(disliked_apartments, 1):
+            price_str = f"{apt.price:,} ₽" if apt.price else "цена не указана"
+            response += f"{i}. **{price_str}**\n"
+            response += f"_{apt.title[:60]}{'...' if len(apt.title) > 60 else ''}_\n"
+            response += f"[Открыть]({apt.url})\n\n"
+        
+        summary = await ReactionService.get_user_reactions_summary(user_id)
+        response += f"📊 Всего дизлайков: {summary['dislikes']}"
+        
+        await message.answer(response, parse_mode="Markdown", disable_web_page_preview=True)
+        
+    except Exception as e:
+        logger.error(f"Error in disliked_command_handler: {e}")
+        await message.answer("❌ Ошибка при загрузке дизлайков")
     

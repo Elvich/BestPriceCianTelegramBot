@@ -1,6 +1,6 @@
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 from sqlalchemy.ext.asyncio import AsyncAttrs, async_sessionmaker, create_async_engine
-from sqlalchemy import String, Integer, BigInteger, Text, DateTime, Float, Boolean, ForeignKey, JSON
+from sqlalchemy import String, Integer, BigInteger, Text, DateTime, Float, Boolean, ForeignKey, JSON, Index
 from datetime import datetime
 import sys
 import os
@@ -52,6 +52,7 @@ class Apartment(Base):
     metro_stations: Mapped[list["MetroStation"]] = relationship("MetroStation", back_populates="apartment", cascade="all, delete-orphan")
     price_history: Mapped[list["PriceHistory"]] = relationship("PriceHistory", back_populates="apartment", cascade="all, delete-orphan")
     user_reads: Mapped[list["UserApartmentRead"]] = relationship("UserApartmentRead", back_populates="apartment", cascade="all, delete-orphan")
+    user_reactions: Mapped[list["UserApartmentReaction"]] = relationship("UserApartmentReaction", back_populates="apartment", cascade="all, delete-orphan")
 
 class MetroStation(Base):
     """Модель для хранения информации о станциях метро"""
@@ -134,6 +135,25 @@ class UserApartmentRead(Base):
     
     # Связи
     apartment: Mapped["Apartment"] = relationship("Apartment", back_populates="user_reads")
+
+class UserApartmentReaction(Base):
+    """Реакции пользователей на квартиры (лайки/дизлайки)"""
+    __tablename__ = "user_apartment_reactions"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    telegram_id: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    apartment_id: Mapped[int] = mapped_column(Integer, ForeignKey("apartments.id"), nullable=False)
+    reaction: Mapped[str] = mapped_column(String(10), nullable=False)  # 'like', 'dislike'
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Составной индекс для быстрого поиска и уникальности (один пользователь - одна реакция на квартиру)
+    __table_args__ = (
+        Index('ix_user_apartment_unique', 'telegram_id', 'apartment_id', unique=True),
+    )
+    
+    # Связи
+    apartment: Mapped["Apartment"] = relationship("Apartment", back_populates="user_reactions")
 
 # Устаревшая модель - оставляем для совместимости
 class Expense(Base):

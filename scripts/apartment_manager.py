@@ -14,6 +14,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from DB.filter_service import FilterService, FilterConfig, DEFAULT_FILTER_CONFIG, PREMIUM_FILTER_CONFIG, BARGAIN_HUNTER_CONFIG, BOOTSTRAP_CONFIG
 from DB.apartment_service import ApartmentService
+from DB.reaction_service import ReactionService
 
 async def run_filter(config: FilterConfig, limit: int = 50, verbose: bool = False):
     """Запускает процесс фильтрации"""
@@ -276,6 +277,40 @@ def create_custom_config() -> FilterConfig:
     print("✅ Конфигурация создана!")
     return config
 
+async def show_reactions(user_id: int = None, apartment_id: int = None):
+    """Показывает статистику реакций"""
+    
+    if apartment_id:
+        # Статистика по конкретной квартире
+        stats = await ReactionService.get_apartment_reactions_stats(apartment_id)
+        print(f"📊 Статистика реакций для квартиры ID {apartment_id}:")
+        print(f"   ❤️ Лайков: {stats['likes']}")
+        print(f"   👎 Дизлайков: {stats['dislikes']}")
+        print(f"   📈 Всего реакций: {stats['total']}")
+        return
+    
+    if user_id:
+        # Статистика по конкретному пользователю
+        summary = await ReactionService.get_user_reactions_summary(user_id)
+        print(f"👤 Статистика реакций пользователя {user_id}:")
+        print(f"   ❤️ Лайков: {summary['likes']}")
+        print(f"   👎 Дизлайков: {summary['dislikes']}")
+        print(f"   📈 Всего реакций: {summary['total']}")
+        
+        # Показываем топ лайкнутых квартир
+        liked = await ReactionService.get_user_liked_apartments(user_id, limit=5)
+        if liked:
+            print(f"\n❤️ Топ-5 лайкнутых квартир:")
+            for i, apt in enumerate(liked, 1):
+                price_str = f"{apt.price:,} ₽" if apt.price else "цена не указана"
+                print(f"   {i}. {price_str} - {apt.title[:50]}...")
+        return
+    
+    # Общая статистика по всем реакциям
+    print("📊 Пока нет функции общей статистики по всем реакциям")
+    print("💡 Используйте --user-id для статистики пользователя")
+    print("💡 Используйте --apartment-id для статистики квартиры")
+
 def main():
     """Главная функция CLI"""
     parser = argparse.ArgumentParser(description='Фильтрация квартир в единой БД')
@@ -305,6 +340,11 @@ def main():
     # Команда просмотра логов
     logs_parser = subparsers.add_parser('logs', help='Показать логи фильтрации')
     logs_parser.add_argument('cian_id', help='ID объявления на Cian')
+    
+    # Команда просмотра реакций
+    reactions_parser = subparsers.add_parser('reactions', help='Статистика реакций')
+    reactions_parser.add_argument('--user-id', type=int, help='Telegram ID пользователя')
+    reactions_parser.add_argument('--apartment-id', type=int, help='ID квартиры для детальной информации')
     
     # Команда анализа рынка
     market_parser = subparsers.add_parser('market', help='Анализ рыночных цен')
@@ -357,6 +397,9 @@ def main():
         
     elif args.command == 'logs':
         asyncio.run(show_filter_logs(args.cian_id))
+    
+    elif args.command == 'reactions':
+        asyncio.run(show_reactions(args.user_id, args.apartment_id))
     
     elif args.command == 'market':
         asyncio.run(analyze_market_prices(args.rooms, args.metro))
