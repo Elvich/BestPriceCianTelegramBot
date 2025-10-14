@@ -223,7 +223,7 @@ async def help_callback_handler(callback: CallbackQuery):
 🚇 /metro - Список доступных станций метро
 🆕 /recent - Недавно добавленные объявления
 ❤️ /liked - Ваши любимые квартиры
-� /disliked - Скрытые квартиры
+👎 /disliked - Скрытые квартиры
 �📄 /export - Экспорт данных в Excel формат
 
 **Система лайков и дизлайков:**
