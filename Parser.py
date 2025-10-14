@@ -158,8 +158,14 @@ class Parser:
             
         return metro_info
 
-    def parse(self, url, start_page=1, end_page=17, write_to_file=False, deep_parse=False):
+    def parse(self, url, start_page=None, end_page=None, write_to_file=False, deep_parse=False):
         """Основной метод парсинга"""
+        # Используем значения по умолчанию из конфигурации если не указаны
+        if start_page is None:
+            start_page = config.PARSER_DEFAULT_START_PAGE
+        if end_page is None:
+            end_page = config.PARSER_DEFAULT_END_PAGE
+            
         self.kvs = []
         self._validate_params(url, start_page, end_page)
 

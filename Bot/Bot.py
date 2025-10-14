@@ -84,14 +84,16 @@ async def main():
         
         # Создаем фоновую задачу для отправки уведомлений
         async def notification_task():
-            """Фоновая задача для отправки уведомлений каждые 30 секунд"""
+            """Фоновая задача для отправки уведомлений"""
             while True:
                 try:
-                    await notification_sender.send_pending_notifications(max_notifications=50)
-                    await asyncio.sleep(30)  # Проверяем каждые 30 секунд
+                    await notification_sender.send_pending_notifications(
+                        max_notifications=config.MAX_NOTIFICATIONS_PER_BATCH
+                    )
+                    await asyncio.sleep(config.NOTIFICATION_CHECK_INTERVAL)
                 except Exception as e:
                     logger.error(f"Ошибка в фоновой задаче уведомлений: {e}")
-                    await asyncio.sleep(60)  # При ошибке ждем минуту
+                    await asyncio.sleep(config.NOTIFICATION_ERROR_RETRY_INTERVAL)
         
         # Запускаем фоновую задачу
         notification_task_handle = asyncio.create_task(notification_task())

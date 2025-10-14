@@ -413,88 +413,122 @@ class FilterService:
 
 
 
-# Примеры конфигураций фильтров
-DEFAULT_FILTER_CONFIG = FilterConfig(
-    # Рыночные фильтры - основа системы
-    enable_market_filter=True,
-    min_market_discount_percent=10.0,  # минимум 10% скидка к рынку
+# Функция для создания конфигурации фильтра из переменных окружения
+def get_default_filter_config() -> FilterConfig:
+    """Создает конфигурацию DEFAULT фильтра из переменных окружения"""
+    import sys
+    import os
+    sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    from config import config
     
-    # Ценовые ограничения
-    max_price=100_000_000,  # до 100 млн (широкие рамки)
-    min_price=5_000_000,    # от 5 млн
-    
-    # Географические ограничения
-    required_metro_distance=10,  # до 10 минут до метро (ближайшая валидная станция)
-    # Станции загружаются из config/metro_config.py
-    
-    # Качество объявления
-    min_title_length=20,
-    blocked_keywords=['коммунальная', 'доля', 'хостел', 'общежитие'],
-    check_duplicates=True
-)
+    return FilterConfig(
+        # Рыночные фильтры - основа системы
+        enable_market_filter=True,
+        min_market_discount_percent=config.DEFAULT_FILTER_MIN_MARKET_DISCOUNT,
+        
+        # Ценовые ограничения
+        max_price=config.DEFAULT_FILTER_MAX_PRICE,
+        min_price=config.DEFAULT_FILTER_MIN_PRICE,
+        
+        # Географические ограничения
+        required_metro_distance=config.DEFAULT_FILTER_REQUIRED_METRO_DISTANCE,
+        
+        # Качество объявления
+        min_title_length=config.DEFAULT_FILTER_MIN_TITLE_LENGTH,
+        blocked_keywords=['коммунальная', 'доля', 'хостел', 'общежитие'],
+        check_duplicates=True
+    )
 
-PREMIUM_FILTER_CONFIG = FilterConfig(
-    # Рыночные фильтры - более строгие
-    enable_market_filter=True,
-    min_market_discount_percent=15.0,  # минимум 15% скидка к рынку
+# Создаем конфигурацию из переменных окружения
+DEFAULT_FILTER_CONFIG = get_default_filter_config()
+
+def get_premium_filter_config() -> FilterConfig:
+    """Создает конфигурацию PREMIUM фильтра из переменных окружения"""
+    import sys
+    import os
+    sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    from config import config
     
-    # Ценовые ограничения
-    max_price=80_000_000,   # до 80 млн
-    min_price=20_000_000,   # от 20 млн
-    max_price_per_sqm=400_000,  # до 400к за м²
+    return FilterConfig(
+        # Рыночные фильтры - более строгие
+        enable_market_filter=True,
+        min_market_discount_percent=config.PREMIUM_FILTER_MIN_MARKET_DISCOUNT,
+        
+        # Ценовые ограничения
+        max_price=config.PREMIUM_FILTER_MAX_PRICE,
+        min_price=config.PREMIUM_FILTER_MIN_PRICE,
+        max_price_per_sqm=config.PREMIUM_FILTER_MAX_PRICE_PER_SQM,
+        
+        # Географические ограничения
+        required_metro_distance=config.PREMIUM_FILTER_REQUIRED_METRO_DISTANCE,
+        # Только предпочитаемые станции для премиум конфигурации
+        allowed_metro_stations=[
+            'Красносельская', 'Комсомольская', 'Сокольники', 
+            'Преображенская площадь', 'Сокол', 'Войковская'
+        ],
+        
+        # Характеристики квартир
+        min_area=config.PREMIUM_FILTER_MIN_AREA,
+        allowed_rooms=[2, 3, 4],  # 2-4 комнаты
+        min_floor=config.PREMIUM_FILTER_MIN_FLOOR,
+        max_floor=config.PREMIUM_FILTER_MAX_FLOOR,
+        
+        # Качество объявления
+        blocked_keywords=['студия', 'коммунальная', 'доля', 'комната', 'хрущевка', 'хостел'],
+        check_duplicates=True
+    )
+
+PREMIUM_FILTER_CONFIG = get_premium_filter_config()
+
+def get_bargain_hunter_config() -> FilterConfig:
+    """Создает конфигурацию BARGAIN HUNTER фильтра из переменных окружения"""
+    import sys
+    import os
+    sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    from config import config
     
-    # Географические ограничения
-    required_metro_distance=8,  # до 8 минут до метро (премиум требования)
-    # Станции загружаются из config/metro_config.py
-    # Только предпочитаемые станции для премиум конфигурации
-    allowed_metro_stations=[
-        'Красносельская', 'Комсомольская', 'Сокольники', 
-        'Преображенская площадь', 'Сокол', 'Войковская'
-    ],
-    
-    # Характеристики квартир
-    min_area=50.0,  # от 50 м²
-    allowed_rooms=[2, 3, 4],  # 2-4 комнаты
-    min_floor=2,  # не первый этаж
-    max_floor=20, # не выше 20 этажа
-    
-    # Качество объявления
-    blocked_keywords=['студия', 'коммунальная', 'доля', 'комната', 'хрущевка', 'хостел'],
-    check_duplicates=True
-)
+    return FilterConfig(
+        # Основной фокус - рыночные цены
+        enable_market_filter=True,
+        min_market_discount_percent=config.BARGAIN_FILTER_MIN_MARKET_DISCOUNT,
+        
+        # Минимальные ограничения для поиска максимальных скидок
+        max_price=config.BARGAIN_FILTER_MAX_PRICE,
+        min_price=config.BARGAIN_FILTER_MIN_PRICE,
+        required_metro_distance=config.BARGAIN_FILTER_REQUIRED_METRO_DISTANCE,
+        
+        # Только базовые фильтры качества
+        min_title_length=config.BARGAIN_FILTER_MIN_TITLE_LENGTH,
+        blocked_keywords=['доля', 'коммунальная'],
+        check_duplicates=True
+    )
 
 # Конфигурация только для поиска выгодных сделок
-BARGAIN_HUNTER_CONFIG = FilterConfig(
-    # Основной фокус - рыночные цены
-    enable_market_filter=True,
-    min_market_discount_percent=20.0,  # минимум 20% скидка к рынку!
+BARGAIN_HUNTER_CONFIG = get_bargain_hunter_config()
+
+def get_bootstrap_config() -> FilterConfig:
+    """Создает конфигурацию BOOTSTRAP фильтра из переменных окружения"""
+    import sys
+    import os
+    sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    from config import config
     
-    # Минимальные ограничения для поиска максимальных скидок
-    max_price=150_000_000,  # широкие рамки
-    min_price=3_000_000,
-    required_metro_distance=30,  # можем пожертвовать удобством ради цены
-    
-    # Только базовые фильтры качества
-    min_title_length=15,
-    blocked_keywords=['доля', 'коммунальная'],
-    check_duplicates=True
-)
+    return FilterConfig(
+        # Отключаем рыночный фильтр для создания базы сравнения
+        enable_market_filter=False,
+        
+        # Базовые ограничения - очень либеральные
+        max_price=config.BOOTSTRAP_FILTER_MAX_PRICE,
+        min_price=config.BOOTSTRAP_FILTER_MIN_PRICE,
+        
+        # НЕ требуем метро для первоначального наполнения
+        required_metro_distance=None,  # отключаем проверку расстояния до метро
+        
+        # Минимальное качество
+        min_title_length=config.BOOTSTRAP_FILTER_MIN_TITLE_LENGTH,
+        blocked_keywords=['доля', 'коммунальная'],  # минимум блокировок
+        check_duplicates=True
+    )
 
 # Конфигурация для первоначального наполнения БД (без рыночного фильтра)
-BOOTSTRAP_CONFIG = FilterConfig(
-    # Отключаем рыночный фильтр для создания базы сравнения
-    enable_market_filter=False,
-    
-    # Базовые ограничения - очень либеральные
-    max_price=200_000_000,  # очень широкие рамки
-    min_price=1_000_000,
-    
-    # НЕ требуем метро для первоначального наполнения
-    required_metro_distance=None,  # отключаем проверку расстояния до метро
-    # В bootstrap режиме бан-лист игнорируется (см. MetroFilter логику)
-    
-    # Минимальное качество
-    min_title_length=5,  # очень либерально
-    blocked_keywords=['доля', 'коммунальная'],  # минимум блокировок
-    check_duplicates=True
-)
+BOOTSTRAP_CONFIG = get_bootstrap_config()

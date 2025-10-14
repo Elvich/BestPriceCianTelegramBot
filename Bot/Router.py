@@ -28,8 +28,8 @@ logger = logging.getLogger(__name__)
 
 router = Router()
 
-# Конфигурация для повторных попыток
-RETRY_CONFIG = RetryConfig(max_retries=3, base_delay=1.0, exponential_backoff=True)
+# Конфигурация для повторных попыток (используем значения по умолчанию из config)
+RETRY_CONFIG = RetryConfig()
 
 # Декоратор для обработки сетевых ошибок и автоматического создания пользователей
 def handle_network_errors(func):
