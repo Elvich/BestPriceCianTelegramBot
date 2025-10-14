@@ -144,7 +144,8 @@ class ApartmentService:
         max_price: Optional[int] = None,
         metro_stations: Optional[List[str]] = None,
         only_active: bool = True,
-        only_production: bool = False
+        only_production: bool = False,
+        exclude_disliked_for_user: Optional[int] = None
     ) -> List[Apartment]:
         """
         Получает список объявлений с фильтрацией
@@ -156,6 +157,7 @@ class ApartmentService:
             metro_stations: Список предпочитаемых станций метро
             only_active: Показывать только активные объявления
             only_production: Показывать только квартиры из production (прошедшие фильтрацию)
+            exclude_disliked_for_user: ID пользователя для исключения дизлайкнутых квартир
             
         Returns:
             Список объявлений
@@ -187,6 +189,13 @@ class ApartmentService:
                     MetroStation.station_name.in_(metro_stations)
                 )
                 conditions.append(Apartment.id.in_(metro_condition))
+            
+            if exclude_disliked_for_user:
+                # Исключаем дизлайкнутые квартиры
+                from .reaction_service import ReactionService
+                disliked_ids = await ReactionService.get_disliked_apartment_ids(exclude_disliked_for_user)
+                if disliked_ids:
+                    conditions.append(~Apartment.id.in_(disliked_ids))
             
             if conditions:
                 query = query.where(and_(*conditions))
@@ -731,3 +740,49 @@ class ApartmentService:
             except Exception as e:
                 print(f"Ошибка при получении данных о метро: {e}")
                 return []
+    
+    @staticmethod
+    async def get_apartments_with_user_reactions(
+        telegram_id: int,
+        limit: int = 100,
+        min_price: Optional[int] = None,
+        max_price: Optional[int] = None,
+        metro_stations: Optional[List[str]] = None,
+        only_active: bool = True,
+        only_production: bool = False
+    ) -> List[dict]:
+        """
+        Получает список квартир с информацией о реакциях пользователя
+        
+        Args:
+            telegram_id: ID пользователя в Telegram
+            limit: Максимальное количество результатов
+            min_price: Минимальная цена
+            max_price: Максимальная цена
+            metro_stations: Список предпочитаемых станций метро
+            only_active: Показывать только активные объявления
+            only_production: Показывать только квартиры из production
+            
+        Returns:
+            Список словарей с информацией о квартирах и реакциях
+        """
+        from .reaction_service import ReactionService
+        
+        apartments = await ApartmentService.get_apartments(
+            limit=limit,
+            min_price=min_price,
+            max_price=max_price,
+            metro_stations=metro_stations,
+            only_active=only_active,
+            only_production=only_production
+        )
+        
+        result = []
+        for apartment in apartments:
+            reaction = await ReactionService.get_user_reaction(telegram_id, apartment.id)
+            result.append({
+                'apartment': apartment,
+                'user_reaction': reaction
+            })
+        
+        return result
