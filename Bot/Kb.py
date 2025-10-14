@@ -74,7 +74,7 @@ def create_apartment_detail_keyboard(apartment_id: int, current_reaction: str = 
     """
     # Определяем эмодзи в зависимости от текущей реакции
     like_emoji = "❤️" if current_reaction == "like" else "🤍"
-    dislike_emoji = "👎" if current_reaction == "dislike" else "👌"
+    dislike_emoji = "👎" 
     
     return InlineKeyboardMarkup(
         inline_keyboard=[
@@ -97,21 +97,6 @@ def create_apartment_detail_keyboard(apartment_id: int, current_reaction: str = 
         ]
     )
 
-# Меню лайков и дизлайков
-reactions_menu = InlineKeyboardMarkup(
-    inline_keyboard=[
-        [
-            InlineKeyboardButton(text="❤️ Мои лайки", callback_data="my_likes"),
-            InlineKeyboardButton(text="👎 Мои дизлайки", callback_data="my_dislikes")
-        ],
-        [
-            InlineKeyboardButton(text="📊 Статистика реакций", callback_data="reactions_stats")
-        ],
-        [
-            InlineKeyboardButton(text="🏠 Главное меню", callback_data="back_to_menu")
-        ]
-    ]
-)
 
 # Кнопки для управления реакциями в списке лайков/дизлайков
 def create_reaction_management_keyboard(apartment_id: int, reaction_type: str) -> InlineKeyboardMarkup:
@@ -152,7 +137,7 @@ def create_apartment_browser_keyboard(current_index: int, total_count: int, apar
     """
     # Определяем эмодзи в зависимости от текущей реакции
     like_emoji = "❤️" if current_reaction == "like" else "🤍"
-    dislike_emoji = "👎" if current_reaction == "dislike" else "👌"
+    dislike_emoji = "👎"
     
     keyboard = []
     

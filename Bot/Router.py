@@ -108,7 +108,7 @@ async def command_start_handler(message: Message, state: FSMContext):
 
 или
 
-Используйте кнопки ниже для навигации{new_indicator}""", 
+Используй кнопки ниже для навигации{new_indicator}""", 
         reply_markup=kb.main_menu
     )
 
@@ -142,31 +142,6 @@ async def stats_handler(message: Message):
     except Exception as e:
         await message.answer(f"❌ Ошибка при получении статистики: {str(e)}")
 
-@router.message(Command("metro"))
-@handle_network_errors
-async def metro_handler(message: Message):
-    """Показывает список станций метро"""
-    try:
-        from DB.Models import async_session, MetroStation
-        from sqlalchemy import select
-        
-        async with async_session() as session:
-            query = select(MetroStation.station_name).distinct().order_by(MetroStation.station_name)
-            result = await session.execute(query)
-            stations = result.scalars().all()
-        
-        if not stations:
-            await message.answer("❌ Станции метро не найдены")
-            return
-        
-        response = f"🚇 **Станции метро в базе ({len(stations)}):**\n\n"
-        response += "\n".join([f"• {station}" for station in stations])
-        
-        await message.answer(response, parse_mode="Markdown")
-        
-    except Exception as e:
-        await message.answer(f"❌ Ошибка при получении списка станций: {str(e)}")
-
 @router.message(Command("recent"))  
 @handle_network_errors
 async def recent_handler(message: Message):
@@ -193,7 +168,7 @@ async def recent_handler(message: Message):
             await message.answer("📭 Новых объявлений не найдено")
             return
         
-        response = f"🆕 **Новые объявления за неделю ({len(apartments)}):**\n\n"
+        response = f"🆕 **Новые объявления ({len(apartments)}):**\n\n"
         
         for apt in apartments:
             price_str = f"{apt.price:,} ₽" if apt.price else "цена не указана"
@@ -297,36 +272,6 @@ async def stats_callback_handler(callback: CallbackQuery):
         logger.error(f"Error in stats_callback_handler: {e}")
         await safe_edit_message(callback, f"❌ Ошибка при получении статистики: {str(e)}", reply_markup=kb.back_to_menu)
 
-@router.callback_query(F.data == "metro")
-@handle_network_errors
-async def metro_callback_handler(callback: CallbackQuery):
-    """Станции метро через кнопку"""
-    try:
-        from DB.Models import async_session, MetroStation
-        from sqlalchemy import select
-        
-        async with async_session() as session:
-            query = select(MetroStation.station_name).distinct().order_by(MetroStation.station_name)
-            result = await session.execute(query)
-            stations = result.scalars().all()
-        
-        if not stations:
-            await safe_edit_message(callback, "❌ Станции метро не найдены", reply_markup=kb.back_to_menu)
-            return
-        
-        response = f"🚇 **Станции метро в базе ({len(stations)}):**\n\n"
-        # Ограничиваем количество станций, чтобы не превысить лимит сообщения
-        stations_text = "\n".join([f"• {station}" for station in stations[:20]])
-        response += stations_text
-        
-        if len(stations) > 20:
-            response += f"\n\n... и еще {len(stations) - 20} станций"
-        
-        await safe_edit_message(callback, response, parse_mode="Markdown", reply_markup=kb.back_to_menu)
-        
-    except Exception as e:
-        logger.error(f"Error in metro_callback_handler: {e}")
-        await safe_edit_message(callback, f"❌ Ошибка при получении списка станций: {str(e)}", reply_markup=kb.back_to_menu)
 
 @router.callback_query(F.data == "recent")
 @handle_network_errors
@@ -346,103 +291,7 @@ async def recent_callback_handler(callback: CallbackQuery):
         logger.error(f"Error in recent_callback_handler: {e}")
         await safe_edit_message(callback, f"❌ Ошибка при получении новых квартир: {str(e)}", reply_markup=kb.back_to_menu)
 
-# Вспомогательная функция для поиска
-async def search_apartments_helper(message, is_callback=False):
-    """Вспомогательная функция для логики поиска"""
-    try:
-        # Определяем user_id из сообщения
-        user_id = None
-        if hasattr(message, 'from_user'):
-            user_id = message.from_user.id
-        elif hasattr(message, 'chat'):
-            # Для случаев когда это callback
-            user_id = message.chat.id
-        
-        # Получаем квартиры, исключая дизлайкнутые пользователем
-        apartments = await ApartmentService.get_apartments(
-            limit=5, 
-            only_active=True, 
-            only_production=True,
-            exclude_disliked_for_user=user_id if user_id else None
-        )
-        
-        if not apartments:
-            text = "❌ Объявления не найдены. Возможно, база данных пуста."
-            if is_callback:
-                # Создаем фиктивный callback для использования safe_edit_message
-                class FakeCallback:
-                    def __init__(self, message):
-                        self.message = message
-                    async def answer(self):
-                        pass
-                await safe_edit_message(FakeCallback(message), text, reply_markup=kb.back_to_menu)
-            else:
-                await message.answer(text)
-            return
-        
-        response = "🔍 **Топ-5 самых выгодных предложений:**\n\n"
-        
-        # Отправляем каждую квартиру отдельным сообщением с кнопками реакций
-        for i, apt in enumerate(apartments, 1):
-            price_str = f"{apt.price:,} ₽" if apt.price else "цена не указана"
-            price_per_sqm_str = f" ({apt.price_per_sqm:,} ₽/м²)" if apt.price_per_sqm else ""
-            
-            metro_info = []
-            for metro in apt.metro_stations[:2]:
-                metro_info.append(f"{metro.station_name} {metro.travel_time}")
-            metro_str = f"\n🚇 {', '.join(metro_info)}" if metro_info else ""
-            
-            address_str = f"\n📍 {apt.address}" if apt.address else ""
-            
-            apt_text = f"**{i}. {price_str}{price_per_sqm_str}**\n"
-            apt_text += f"{apt.title}\n"
-            apt_text += f"🔗 [Посмотреть на Cian]({apt.url})"
-            apt_text += metro_str
-            apt_text += address_str
-            
-            # Получаем текущую реакцию пользователя на эту квартиру
-            current_reaction = None
-            if user_id:
-                current_reaction = await ReactionService.get_user_reaction(user_id, apt.id)
-            
-            # Создаем клавиатуру с кнопками реакций
-            reaction_keyboard = kb.create_apartment_reaction_keyboard(apt.id, current_reaction)
-            
-            # Отправляем квартиру как отдельное сообщение с кнопками
-            await message.answer(
-                apt_text,
-                parse_mode="Markdown",
-                reply_markup=reaction_keyboard,
-                disable_web_page_preview=True
-            )
-        
-        # Отправляем итоговое сообщение
-        final_text = f"✅ Показано {len(apartments)} квартир\n\n"
-        final_text += "💡 Используйте кнопки ❤️ и 👎 для лайков/дизлайков\n"
-        final_text += "Дизлайкнутые квартиры больше не будут показываться в поиске."
-        
-        if is_callback:
-            class FakeCallback:
-                def __init__(self, message):
-                    self.message = message
-                async def answer(self):
-                    pass
-            await safe_edit_message(FakeCallback(message), final_text, parse_mode="Markdown", reply_markup=kb.back_to_menu)
-        else:
-            await message.answer(final_text, parse_mode="Markdown", reply_markup=kb.main_menu)
-        
-    except Exception as e:
-        logger.error(f"Error in search_apartments_helper: {e}")
-        error_text = f"❌ Ошибка при поиске: {str(e)}"
-        if is_callback:
-            class FakeCallback:
-                def __init__(self, message):
-                    self.message = message
-                async def answer(self):
-                    pass
-            await safe_edit_message(FakeCallback(message), error_text, reply_markup=kb.back_to_menu)
-        else:
-            await message.answer(error_text)
+
 
 async def browse_apartments_helper(callback: CallbackQuery, index: int = 0):
     """Помощник для просмотра квартир в режиме плеера"""
