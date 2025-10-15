@@ -307,12 +307,12 @@ async def full_cycle(url):
 async def main():
     """Главная функция"""
     try:
-       # while True:
-        #    for url in CIAN_URLS:
-        await full_cycle(CIAN_URLS[1])
-        #await asyncio.sleep(config.AUTO_PARSER_CYCLE_DELAY)  
-               
-        
+        while True:
+            for url in CIAN_URLS:
+                await full_cycle(url)
+                await asyncio.sleep(config.AUTO_PARSER_CYCLE_DELAY)  
+
+
     except ValueError as e:
         print(f"❌ Ошибка значения: {e}")
         sys.exit(1)
