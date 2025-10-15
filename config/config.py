@@ -32,6 +32,9 @@ class Config:
     PARSER_DEFAULT_START_PAGE: int = int(os.getenv('PARSER_DEFAULT_START_PAGE', '1'))
     PARSER_DEFAULT_END_PAGE: int = int(os.getenv('PARSER_DEFAULT_END_PAGE', '17'))
     
+    # Auto Parser Configuration
+    AUTO_PARSER_CYCLE_DELAY: int = int(os.getenv('AUTO_PARSER_CYCLE_DELAY', '1800'))  # 30 минут между циклами
+    
     # API Configuration
     REQUEST_TIMEOUT: int = int(os.getenv('REQUEST_TIMEOUT', '30'))
     MAX_RETRIES: int = int(os.getenv('MAX_RETRIES', '3'))
@@ -103,6 +106,7 @@ class Config:
         print(f"   Parser Delay: {cls.PARSER_DELAY}s")
         print(f"   Deep Parse Delay: {cls.PARSER_DEEP_DELAY}s")
         print(f"   Default Pages: {cls.PARSER_DEFAULT_START_PAGE}-{cls.PARSER_DEFAULT_END_PAGE}")
+        print(f"   Auto Parser Cycle Delay: {cls.AUTO_PARSER_CYCLE_DELAY}s ({cls.AUTO_PARSER_CYCLE_DELAY/60:.1f}min)")
         print("")
         print("🔗 API настройки:")
         print(f"   Request Timeout: {cls.REQUEST_TIMEOUT}s")
