@@ -4,19 +4,15 @@ from aiogram.types import ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardMar
 main_menu = InlineKeyboardMarkup(
     inline_keyboard=[
         [
-            InlineKeyboardButton(text="🔍 Поиск квартир", callback_data="search"),
-            InlineKeyboardButton(text="📊 Статистика", callback_data="stats")
-        ],
-        [
-            InlineKeyboardButton(text="🚇 Станции метро", callback_data="metro"),
+            InlineKeyboardButton(text="🏠 Просмотр квартир", callback_data="browse"),
             InlineKeyboardButton(text="🆕 Новые объявления", callback_data="recent")
         ],
         [
             InlineKeyboardButton(text="❤️ Мои лайки", callback_data="my_likes"),
-            InlineKeyboardButton(text="👎 Дизлайки", callback_data="my_dislikes")
+            InlineKeyboardButton(text="📄 Экспорт в Excel", callback_data="export_menu")
         ],
         [
-            InlineKeyboardButton(text="📄 Экспорт в Excel", callback_data="export_menu"),
+    
             InlineKeyboardButton(text="ℹ️ Помощь", callback_data="help")
         ]
     ]
@@ -26,12 +22,8 @@ main_menu = InlineKeyboardMarkup(
 export_menu = InlineKeyboardMarkup(
     inline_keyboard=[
         [
-            InlineKeyboardButton(text="📋 Все объявления", callback_data="export_all"),
-            InlineKeyboardButton(text="💰 До 20 млн", callback_data="export_cheap")
-        ],
-        [
-            InlineKeyboardButton(text="📊 Статистика", callback_data="export_stats"),
-            InlineKeyboardButton(text="🎯 Топ-50 дешевых", callback_data="export_top50")
+            InlineKeyboardButton(text="🏠 Все", callback_data="export_browse"),
+            InlineKeyboardButton(text="❤️ Мои лайки", callback_data="export_liked")
         ],
         [InlineKeyboardButton(text="🏠 Главное меню", callback_data="back_to_menu")]
     ]
@@ -55,7 +47,7 @@ def create_apartment_reaction_keyboard(apartment_id: int, current_reaction: str 
     """
     # Определяем эмодзи в зависимости от текущей реакции
     like_emoji = "❤️" if current_reaction == "like" else "🤍"
-    dislike_emoji = "👎" if current_reaction == "dislike" else "👌"
+    dislike_emoji = "👎" 
     
     return InlineKeyboardMarkup(
         inline_keyboard=[
@@ -82,7 +74,7 @@ def create_apartment_detail_keyboard(apartment_id: int, current_reaction: str = 
     """
     # Определяем эмодзи в зависимости от текущей реакции
     like_emoji = "❤️" if current_reaction == "like" else "🤍"
-    dislike_emoji = "👎" if current_reaction == "dislike" else "👌"
+    dislike_emoji = "👎" 
     
     return InlineKeyboardMarkup(
         inline_keyboard=[
@@ -105,21 +97,6 @@ def create_apartment_detail_keyboard(apartment_id: int, current_reaction: str = 
         ]
     )
 
-# Меню лайков и дизлайков
-reactions_menu = InlineKeyboardMarkup(
-    inline_keyboard=[
-        [
-            InlineKeyboardButton(text="❤️ Мои лайки", callback_data="my_likes"),
-            InlineKeyboardButton(text="👎 Мои дизлайки", callback_data="my_dislikes")
-        ],
-        [
-            InlineKeyboardButton(text="📊 Статистика реакций", callback_data="reactions_stats")
-        ],
-        [
-            InlineKeyboardButton(text="🏠 Главное меню", callback_data="back_to_menu")
-        ]
-    ]
-)
 
 # Кнопки для управления реакциями в списке лайков/дизлайков
 def create_reaction_management_keyboard(apartment_id: int, reaction_type: str) -> InlineKeyboardMarkup:
@@ -145,6 +122,66 @@ def create_reaction_management_keyboard(apartment_id: int, reaction_type: str) -
             ]
         ]
     )
+
+def create_apartment_browser_keyboard(current_index: int, total_count: int, apartment_id: int, 
+                                    current_reaction: str = None, list_context: str = "all") -> InlineKeyboardMarkup:
+    """
+    Создает клавиатуру плеера для просмотра квартир с навигацией
+    
+    Args:
+        current_index: Текущий индекс квартиры (начиная с 0)
+        total_count: Общее количество квартир
+        apartment_id: ID текущей квартиры
+        current_reaction: Текущая реакция пользователя ('like'/'dislike'/None)
+        list_context: Контекст списка ('all'/'liked'/'disliked'/'new')
+    """
+    # Определяем эмодзи в зависимости от текущей реакции
+    like_emoji = "❤️" if current_reaction == "like" else "🤍"
+    dislike_emoji = "👎"
+    
+    keyboard = []
+    
+    # Первая строчка: Навигация и реакции
+    first_row = []
+    
+    # Кнопка "Назад" (если не первая квартира)
+    if current_index > 0:
+        first_row.append(InlineKeyboardButton(
+            text="⬅️ Назад",
+            callback_data=f"browse_prev_{current_index}_{list_context}"
+        ))
+    
+    # Кнопки реакций
+    first_row.append(InlineKeyboardButton(
+        text=f"{like_emoji}",
+        callback_data=f"reaction_like_{apartment_id}_{list_context}_{current_index}"
+    ))
+    first_row.append(InlineKeyboardButton(
+        text=f"{dislike_emoji}",
+        callback_data=f"reaction_dislike_{apartment_id}_{list_context}_{current_index}"
+    ))
+    
+    # Кнопка "Вперед" (если не последняя квартира)
+    if current_index < total_count - 1:
+        first_row.append(InlineKeyboardButton(
+            text="➡️ Вперед",
+            callback_data=f"browse_next_{current_index}_{list_context}"
+        ))
+    
+    keyboard.append(first_row)
+    
+    # Вторая строчка: Возврат к списку и главное меню
+    second_row = []
+    
+    # Кнопка возврата к списку (если не в основном просмотре)
+    second_row.append(InlineKeyboardButton(
+        text="🏠 Главное меню", 
+        callback_data="back_to_menu"
+    ))
+    
+    keyboard.append(second_row)
+    
+    return InlineKeyboardMarkup(inline_keyboard=keyboard)
 
 # Старые клавиатуры для совместимости
 section = InlineKeyboardMarkup(

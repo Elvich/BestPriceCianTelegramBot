@@ -16,6 +16,7 @@ from openpyxl.utils.dataframe import dataframe_to_rows
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from DB.apartment_service import ApartmentService
+from DB.reaction_service import ReactionService
 from DB.Models import Apartment
 
 
@@ -28,7 +29,7 @@ class ExcelExporter:
         max_price: Optional[int] = None,
         min_price: Optional[int] = None,
         metro_stations: Optional[List[str]] = None,
-        limit: int = 1000
+        limit: Optional[int] = None
     ) -> str:
         """
         Экспортирует объявления о квартирах в Excel файл
@@ -38,7 +39,7 @@ class ExcelExporter:
             max_price: Максимальная цена
             min_price: Минимальная цена
             metro_stations: Список станций метро
-            limit: Максимальное количество записей
+            limit: Ограничение количества записей (None = все записи)
             
         Returns:
             str: Путь к созданному файлу
@@ -97,13 +98,156 @@ class ExcelExporter:
         return os.path.abspath(filename)
     
     @staticmethod
-    def _create_formatted_excel(df: pd.DataFrame, filename: str):
+    async def export_browse_apartments_to_excel(
+        user_id: int,
+        filename: Optional[str] = None,
+        limit: Optional[int] = None
+    ) -> str:
+        """
+        Экспортирует квартиры из раздела "Просмотр квартир" для конкретного пользователя
+        
+        Args:
+            user_id: ID пользователя в Telegram
+            filename: Имя файла (если не указано, генерируется автоматически)
+            limit: Ограничение количества записей (None = все записи)
+            
+        Returns:
+            str: Путь к созданному файлу
+        """
+        
+        # Получаем квартиры для просмотра (исключаем дизлайкнутые пользователем)
+        apartments = await ApartmentService.get_apartments(
+            limit=limit,
+            only_active=True,
+            only_production=True,
+            exclude_disliked_for_user=user_id
+        )
+        
+        if not apartments:
+            raise ValueError("Нет квартир для экспорта")
+        
+        # Генерируем имя файла
+        if not filename:
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            filename = f"browse_apartments_{timestamp}.xlsx"
+        
+        # Подготавливаем данные
+        data = await ExcelExporter._prepare_apartments_data(apartments, user_id)
+        df = pd.DataFrame(data)
+        
+        # Создаем Excel файл
+        ExcelExporter._create_formatted_excel(
+            df, filename, 
+            sheet_title="Просмотр квартир",
+            info_title="Квартиры для просмотра",
+            description="Все доступные квартиры (исключены ваши дизлайки)"
+        )
+        
+        return os.path.abspath(filename)
+    
+    @staticmethod
+    async def export_user_liked_apartments_to_excel(
+        user_id: int,
+        filename: Optional[str] = None,
+        limit: Optional[int] = None
+    ) -> str:
+        """
+        Экспортирует лайкнутые пользователем квартиры
+        
+        Args:
+            user_id: ID пользователя в Telegram
+            filename: Имя файла (если не указано, генерируется автоматически)
+            limit: Ограничение количества записей (None = все записи)
+            
+        Returns:
+            str: Путь к созданному файлу
+        """
+        
+        # Получаем лайкнутые квартиры
+        apartments = await ReactionService.get_user_liked_apartments(user_id, limit)
+        
+        if not apartments:
+            raise ValueError("У вас пока нет лайкнутых квартир")
+        
+        # Генерируем имя файла
+        if not filename:
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            filename = f"liked_apartments_{timestamp}.xlsx"
+        
+        # Подготавливаем данные
+        data = await ExcelExporter._prepare_apartments_data(apartments, user_id)
+        df = pd.DataFrame(data)
+        
+        # Создаем Excel файл
+        ExcelExporter._create_formatted_excel(
+            df, filename,
+            sheet_title="Мои лайки",
+            info_title="Ваши лайкнутые квартиры",
+            description="Квартиры, которые вы добавили в избранное"
+        )
+        
+        return os.path.abspath(filename)
+    
+    @staticmethod
+    async def _prepare_apartments_data(apartments: List[Apartment], user_id: int) -> List[dict]:
+        """
+        Подготавливает данные квартир для экспорта с учетом реакций пользователя
+        
+        Args:
+            apartments: Список квартир
+            user_id: ID пользователя для получения реакций
+            
+        Returns:
+            List[dict]: Подготовленные данные
+        """
+        data = []
+        for apt in apartments:
+            # Получаем реакцию пользователя на эту квартиру
+            user_reaction = await ReactionService.get_user_reaction(user_id, apt.id)
+            reaction_emoji = ""
+            if user_reaction == "like":
+                reaction_emoji = " ❤️"
+            elif user_reaction == "dislike":
+                reaction_emoji = " 👎"
+            
+            # Собираем информацию о станциях метро
+            metro_info = []
+            for metro in apt.metro_stations:
+                metro_info.append(f"{metro.station_name} ({metro.travel_time})")
+            metro_str = "; ".join(metro_info) if metro_info else "Не указано"
+            
+            # Форматируем цены
+            price_formatted = f"{apt.price:,} ₽" if apt.price else "Не указана"
+            price_per_sqm_formatted = f"{apt.price_per_sqm:,} ₽/м²" if apt.price_per_sqm else "Не указана"
+            
+            data.append({
+                'ID': apt.cian_id,
+                'Название': apt.title + reaction_emoji,
+                'Цена': price_formatted,
+                'Цена за м²': price_per_sqm_formatted,
+                'Цена (число)': apt.price or 0,
+                'Цена за м² (число)': apt.price_per_sqm or 0,
+                'Адрес': apt.address or "Не указан",
+                'Станции метро': metro_str,
+                'Ссылка': apt.url,
+                'Дата добавления': apt.first_seen.strftime("%d.%m.%Y %H:%M"),
+                'Последнее обновление': apt.last_updated.strftime("%d.%m.%Y %H:%M"),
+                'Активно': "Да" if apt.is_active else "Нет"
+            })
+        
+        return data
+    
+    @staticmethod
+    def _create_formatted_excel(df: pd.DataFrame, filename: str, 
+                               sheet_title: str = "Объявления о квартирах",
+                               info_title: str = "Отчет по объявлениям о квартирах",
+                               description: str = "Данные о квартирах"):
         """Создает красиво отформатированный Excel файл"""
         
         # Создаем новую книгу
         wb = Workbook()
         ws = wb.active
-        ws.title = "Объявления о квартирах"
+        ws.title = sheet_title
         
         # Добавляем данные
         for r in dataframe_to_rows(df, index=False, header=True):
@@ -169,17 +313,18 @@ class ExcelExporter:
         
         # Добавляем информационный лист
         info_ws = wb.create_sheet("Информация")
-        ExcelExporter._add_info_sheet(info_ws, len(df))
+        ExcelExporter._add_info_sheet(info_ws, len(df), info_title, description)
         
         # Сохраняем файл
         wb.save(filename)
     
     @staticmethod
-    def _add_info_sheet(ws, total_records: int):
+    def _add_info_sheet(ws, total_records: int, title: str = "Отчет по объявлениям о квартирах", 
+                       description: str = "Данные о квартирах"):
         """Добавляет информационный лист с описанием данных"""
         
         info_data = [
-            ["Отчет по объявлениям о квартирах", ""],
+            [title, ""],
             ["", ""],
             ["Дата создания:", datetime.now().strftime("%d.%m.%Y %H:%M")],
             ["Всего записей:", total_records],
@@ -235,7 +380,7 @@ class ExcelExporter:
         
         # Получаем статистику
         stats = await ApartmentService.get_statistics()
-        apartments = await ApartmentService.get_apartments(limit=1000, only_active=True)
+        apartments = await ApartmentService.get_apartments(only_active=True)
         
         if not filename:
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")

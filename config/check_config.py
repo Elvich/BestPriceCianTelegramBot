@@ -46,8 +46,8 @@ def check_config_import():
     print("\n🔍 Проверка импорта конфигурации...")
     
     try:
-        from Config import config
-        print("✅ Модуль Config импортирован успешно")
+        from config import config
+        print("✅ Модуль config импортирован успешно")
         
         # Проверяем валидацию
         config.validate()

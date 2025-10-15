@@ -11,11 +11,17 @@ logger = logging.getLogger(__name__)
 
 class RetryConfig:
     """Конфигурация для повторных попыток"""
-    def __init__(self, max_retries: int = 3, base_delay: float = 1.0, max_delay: float = 60.0, exponential_backoff: bool = True):
-        self.max_retries = max_retries
-        self.base_delay = base_delay
-        self.max_delay = max_delay
-        self.exponential_backoff = exponential_backoff
+    def __init__(self, max_retries: int = None, base_delay: float = None, max_delay: float = None, exponential_backoff: bool = None):
+        # Импортируем config здесь, чтобы избежать циклических импортов
+        import sys
+        import os
+        sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        from config import config
+        
+        self.max_retries = max_retries if max_retries is not None else config.NETWORK_RETRY_MAX_ATTEMPTS
+        self.base_delay = base_delay if base_delay is not None else config.NETWORK_RETRY_BASE_DELAY
+        self.max_delay = max_delay if max_delay is not None else config.NETWORK_RETRY_MAX_DELAY
+        self.exponential_backoff = exponential_backoff if exponential_backoff is not None else config.NETWORK_RETRY_EXPONENTIAL_BACKOFF
 
 async def retry_on_network_error(
     func: Callable,

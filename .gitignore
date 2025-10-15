@@ -217,7 +217,6 @@ __marimo__/
 floats.txt
 Test.py
 apartments.csv
-Config.py
 
 # Generated Excel files
 *.xlsx
