@@ -6,11 +6,12 @@ import sys
 from DB.apartment_service import ApartmentService
 
 class Saver:
-    def __init__(self, filename='apartments.csv', save_to_db=True, save_to_csv=False, use_staging=True):
+    def __init__(self, filename='apartments.csv', save_to_db=True, save_to_csv=False, use_staging=True, source_url=None):
         self.filename = filename
         self.save_to_db = save_to_db
         self.save_to_csv = save_to_csv
         self.use_staging = use_staging
+        self.source_url = source_url
 
     def save(self, data):
         """Сохраняет данные в базу данных и/или CSV файл"""
@@ -39,7 +40,7 @@ class Saver:
                         asyncio.set_event_loop(new_loop)
                         try:
                             if self.use_staging:
-                                return new_loop.run_until_complete(ApartmentService.save_to_staging(data))
+                                return new_loop.run_until_complete(ApartmentService.save_to_staging(data, self.source_url))
                             else:
                                 return new_loop.run_until_complete(ApartmentService.save_apartments(data))
                         finally:
@@ -51,7 +52,7 @@ class Saver:
                 else:
                     # Если event loop не запущен, используем обычный способ
                     if self.use_staging:
-                        stats = asyncio.run(ApartmentService.save_to_staging(data))
+                        stats = asyncio.run(ApartmentService.save_to_staging(data, self.source_url))
                     else:
                         stats = asyncio.run(ApartmentService.save_apartments(data))
                 

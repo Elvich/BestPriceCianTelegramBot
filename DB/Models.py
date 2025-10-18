@@ -26,6 +26,9 @@ class Apartment(Base):
     price: Mapped[int] = mapped_column(Integer, nullable=True)  # Цена в рублях
     price_per_sqm: Mapped[int] = mapped_column(Integer, nullable=True)  # Цена за м² в рублях
     
+    # Источник данных
+    source_url: Mapped[str] = mapped_column(Text, nullable=True, index=True)  # URL поиска, по которому была найдена квартира
+    
     # Детальная информация (из глубокого парсинга)
     address: Mapped[str] = mapped_column(Text, nullable=True)
     floor: Mapped[int] = mapped_column(Integer, nullable=True)

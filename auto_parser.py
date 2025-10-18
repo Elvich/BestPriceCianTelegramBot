@@ -88,6 +88,14 @@ async def parsing(url):
         
         print(f"✅ Обработано {len(apartment_objects)} квартир")
         
+        # НОВАЯ ЛОГИКА: Переводим отклоненные квартиры обратно в pending для пересмотра
+        print("\n🔄 Пересмотр ранее отклоненных квартир из этого источника...")
+        reprocess_stats = await ApartmentService.reprocess_rejected_apartments_for_source(url)
+        if reprocess_stats['reprocessed'] > 0:
+            print(f"✅ Переведено в pending для пересмотра: {reprocess_stats['reprocessed']} квартир")
+        else:
+            print("ℹ️ Нет отклоненных квартир для пересмотра")
+        
         # Сохраняем в staging область базы данных
         print("\n📊 Сохранение в staging область...")
         saved_count = 0
@@ -118,12 +126,20 @@ async def parsing(url):
                         existing.title = apartment.title
                         existing.address = apartment.address
                         existing.last_updated = datetime.utcnow()
+                        
+                        # Важно: добавляем source_url
+                        existing.source_url = url
+                        
                         updated_count += 1
                         current_apartment = existing
                     else:
                         # Добавляем новое
                         apartment.first_seen = datetime.utcnow()
                         apartment.last_updated = datetime.utcnow()
+                        
+                        # Важно: добавляем source_url
+                        apartment.source_url = url
+                        
                         session.add(apartment)
                         saved_count += 1
                         current_apartment = apartment

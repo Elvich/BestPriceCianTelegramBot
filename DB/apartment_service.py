@@ -340,7 +340,8 @@ class ApartmentService:
     async def calculate_staging_average_price(
         rooms: Optional[int] = None,
         metro_station: Optional[str] = None,
-        exclude_cian_id: Optional[str] = None
+        exclude_cian_id: Optional[str] = None,
+        source_url: Optional[str] = None
     ) -> Dict[str, Any]:
         """
         Вычисляет средневзвешенную цену среди НОВЫХ (staging) квартир
@@ -349,6 +350,7 @@ class ApartmentService:
             rooms: Количество комнат (None = все)
             metro_station: Станция метро (None = все)
             exclude_cian_id: Исключить квартиру из расчета (саму тестируемую)
+            source_url: Источник данных - URL поиска (None = все источники)
             
         Returns:
             Dict с метриками: average_price, median_price, count, price_per_sqm
@@ -360,9 +362,16 @@ class ApartmentService:
             conditions = [
                 Apartment.is_staging == True,
                 Apartment.is_active == True,
-                Apartment.price.isnot(None),
-                Apartment.filter_status == 'pending'  # Только необработанные
+                Apartment.price.isnot(None)
             ]
+            
+            # НОВАЯ ЛОГИКА: включаем все квартиры из этого источника (и pending, и processed)
+            # Это позволит уже проверенным квартирам участвовать в расчете рынка
+            if source_url:
+                conditions.append(Apartment.source_url == source_url)
+            else:
+                # Если source_url не указан, используем только необработанные (старое поведение)
+                conditions.append(Apartment.filter_status == 'pending')
             
             # Исключаем саму тестируемую квартиру из расчета
             if exclude_cian_id:
@@ -394,7 +403,8 @@ class ApartmentService:
                     'average_price_per_sqm': None,
                     'count': 0,
                     'rooms': rooms,
-                    'metro_station': metro_station
+                    'metro_station': metro_station,
+                    'source_url': source_url
                 }
             
             # Вычисляем метрики
@@ -411,7 +421,8 @@ class ApartmentService:
                 'average_price_per_sqm': round(average_price_per_sqm) if average_price_per_sqm else None,
                 'count': len(apartments),
                 'rooms': rooms,
-                'metro_station': metro_station
+                'metro_station': metro_station,
+                'source_url': source_url
             }
     
     @staticmethod
@@ -425,45 +436,87 @@ class ApartmentService:
         Returns:
             Dict с рыночными метриками и процентом отклонения
         """
-        # Сначала пытаемся найти похожие НОВЫЕ квартиры по станции метро
+        # НОВАЯ ЛОГИКА: Приоритет для source_url - сначала ищем среди квартир из того же источника
         benchmark = None
         metro_station = None
+        comparison_type = 'unknown'
         
-        if apartment.metro_stations:
+        # 1. Попытка найти бенчмарк по source_url + метро + комнаты
+        if apartment.source_url and apartment.metro_stations:
             metro_station = apartment.metro_stations[0].station_name
             benchmark = await ApartmentService.calculate_staging_average_price(
                 rooms=apartment.rooms,
                 metro_station=metro_station,
-                exclude_cian_id=apartment.cian_id
+                exclude_cian_id=apartment.cian_id,
+                source_url=apartment.source_url
             )
+            if benchmark and benchmark['count'] >= 2:
+                comparison_type = 'source_metro_rooms'
         
-        # Если по метро мало данных, берем общую статистику по количеству комнат среди НОВЫХ
+        # 2. Попытка найти бенчмарк по source_url + комнаты (без метро)
+        if (not benchmark or benchmark['count'] < 2) and apartment.source_url:
+            benchmark = await ApartmentService.calculate_staging_average_price(
+                rooms=apartment.rooms,
+                exclude_cian_id=apartment.cian_id,
+                source_url=apartment.source_url
+            )
+            if benchmark and benchmark['count'] >= 2:
+                comparison_type = 'source_rooms'
+                metro_station = None
+        
+        # 3. Попытка найти бенчмарк по source_url (все квартиры из источника)
+        if (not benchmark or benchmark['count'] < 2) and apartment.source_url:
+            benchmark = await ApartmentService.calculate_staging_average_price(
+                exclude_cian_id=apartment.cian_id,
+                source_url=apartment.source_url
+            )
+            if benchmark and benchmark['count'] >= 2:
+                comparison_type = 'source_general'
+                metro_station = None
+        
+        # 4. Fallback: если source_url не дает результатов, используем глобальную статистику (старая логика)
+        if not benchmark or benchmark['count'] < 2:
+            if apartment.metro_stations:
+                metro_station = apartment.metro_stations[0].station_name
+                benchmark = await ApartmentService.calculate_staging_average_price(
+                    rooms=apartment.rooms,
+                    metro_station=metro_station,
+                    exclude_cian_id=apartment.cian_id
+                )
+                if benchmark and benchmark['count'] >= 2:
+                    comparison_type = 'global_metro_rooms'
+        
+        # 5. Если по метро мало данных, берем общую статистику по количеству комнат среди НОВЫХ
         if not benchmark or benchmark['count'] < 2:
             benchmark = await ApartmentService.calculate_staging_average_price(
                 rooms=apartment.rooms,
                 exclude_cian_id=apartment.cian_id
             )
+            if benchmark and benchmark['count'] >= 2:
+                comparison_type = 'global_rooms'
             metro_station = None
         
-        # Если и этого мало, берем вообще всю статистику НОВЫХ квартир
+        # 6. Если и этого мало, берем вообще всю статистику НОВЫХ квартир
         if not benchmark or benchmark['count'] < 2:
             benchmark = await ApartmentService.calculate_staging_average_price(
                 exclude_cian_id=apartment.cian_id
             )
+            if benchmark and benchmark['count'] >= 1:
+                comparison_type = 'global_general'
             
         # Вычисляем отклонение от рынка
         price_deviation = None
         price_per_sqm_deviation = None
         
-        if benchmark['average_price'] and apartment.price:
+        if benchmark and benchmark['average_price'] and apartment.price:
             price_deviation = ((apartment.price - benchmark['average_price']) / benchmark['average_price']) * 100
             
-        if benchmark['average_price_per_sqm'] and apartment.price_per_sqm:
+        if benchmark and benchmark['average_price_per_sqm'] and apartment.price_per_sqm:
             price_per_sqm_deviation = ((apartment.price_per_sqm - benchmark['average_price_per_sqm']) / benchmark['average_price_per_sqm']) * 100
         
         return {
             'benchmark': benchmark,
-            'comparison_type': 'new_metro' if metro_station else 'new_rooms' if apartment.rooms else 'new_general',
+            'comparison_type': comparison_type,
             'price_deviation_percent': round(price_deviation, 1) if price_deviation is not None else None,
             'price_per_sqm_deviation_percent': round(price_per_sqm_deviation, 1) if price_per_sqm_deviation is not None else None,
             'is_below_market': price_deviation < 0 if price_deviation is not None else None
@@ -539,12 +592,13 @@ class ApartmentService:
                 }
     
     @staticmethod
-    async def save_to_staging(apartments_data: List[List[Any]]) -> Dict[str, int]:
+    async def save_to_staging(apartments_data: List[List[Any]], source_url: Optional[str] = None) -> Dict[str, int]:
         """
         Сохраняет данные парсера в staging (is_staging=True)
         
         Args:
             apartments_data: Список данных в формате [url, title, price, price_per_sqm, details]
+            source_url: URL поиска, по которому были найдены квартиры
             
         Returns:
             Dict с статистикой: {'created': int, 'updated': int, 'errors': int}
@@ -578,6 +632,10 @@ class ApartmentService:
                         existing.price_per_sqm = price_per_sqm
                         existing.last_updated = datetime.utcnow()
                         
+                        # Обновляем source_url, если передан
+                        if source_url:
+                            existing.source_url = source_url
+                        
                         # Обновляем детали если есть
                         if details and isinstance(details, dict):
                             existing.address = details.get('address')
@@ -605,6 +663,7 @@ class ApartmentService:
                             title=title,
                             price=price,
                             price_per_sqm=price_per_sqm,
+                            source_url=source_url,
                             is_staging=True,
                             filter_status='pending'
                         )
@@ -786,3 +845,41 @@ class ApartmentService:
             })
         
         return result
+    
+    @staticmethod
+    async def reprocess_rejected_apartments_for_source(source_url: str) -> Dict[str, int]:
+        """
+        Переводит отклоненные квартиры из source_url обратно в pending для пересмотра
+        
+        Args:
+            source_url: URL источника для пересмотра
+            
+        Returns:
+            Dict с количеством переведенных квартир
+        """
+        async with async_session() as session:
+            try:
+                from sqlalchemy import update
+                
+                # Переводим отклоненные квартиры обратно в pending
+                query = update(Apartment).where(
+                    and_(
+                        Apartment.is_staging == True,
+                        Apartment.source_url == source_url,
+                        Apartment.filter_status == 'rejected'
+                    )
+                ).values(
+                    filter_status='pending',
+                    filter_reason=None,
+                    processed_at=None
+                )
+                
+                result = await session.execute(query)
+                await session.commit()
+                
+                return {'reprocessed': result.rowcount}
+                
+            except Exception as e:
+                print(f"Ошибка при переводе квартир в pending: {e}")
+                await session.rollback()
+                return {'reprocessed': 0}

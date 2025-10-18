@@ -93,9 +93,9 @@ class Parser:
         
         return page_items
 
-    def _save_to_file(self):
+    def _save_to_file(self, source_url=None):
         """Сохраняет результаты в CSV файл"""
-        Saver(filename='apartments.csv').save(data=self.kvs)
+        Saver(filename='apartments.csv', source_url=source_url).save(data=self.kvs)
 
     def _deep_parse(self, url):
         """Глубокий парсинг страницы с детальным извлечением данных"""
@@ -208,6 +208,6 @@ class Parser:
             self.kvs = detailed_kvs  # Обновляем основной список на детализированный
 
         if write_to_file:
-            self._save_to_file()
+            self._save_to_file(source_url=url)
 
         return self.kvs
