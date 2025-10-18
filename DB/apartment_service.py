@@ -436,7 +436,9 @@ class ApartmentService:
         Returns:
             Dict с рыночными метриками и процентом отклонения
         """
-        # НОВАЯ ЛОГИКА: Приоритет для source_url - сначала ищем среди квартир из того же источника
+        # Prioritization strategy: attempt to find benchmark among apartments from the same source_url,
+        # starting with source_url + metro station + rooms, then source_url + rooms, then source_url only.
+        # If insufficient data is found, fall back to global statistics.
         benchmark = None
         metro_station = None
         comparison_type = 'unknown'
