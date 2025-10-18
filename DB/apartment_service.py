@@ -365,12 +365,12 @@ class ApartmentService:
                 Apartment.price.isnot(None)
             ]
             
-            # НОВАЯ ЛОГИКА: включаем все квартиры из этого источника (и pending, и processed)
-            # Это позволит уже проверенным квартирам участвовать в расчете рынка
+            # Включаем все квартиры из указанного источника (source_url), независимо от статуса обработки (pending или processed).
+            # Это позволяет учитывать уже проверенные квартиры при расчете рыночных метрик.
             if source_url:
                 conditions.append(Apartment.source_url == source_url)
             else:
-                # Если source_url не указан, используем только необработанные (старое поведение)
+                # Если source_url не указан, учитываем только необработанные квартиры (filter_status == 'pending').
                 conditions.append(Apartment.filter_status == 'pending')
             
             # Исключаем саму тестируемую квартиру из расчета
