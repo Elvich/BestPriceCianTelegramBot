@@ -113,14 +113,15 @@ class Parser:
 
     def _extract_metro_info(self, soup):
         """
-        Извлекает информацию о станциях метро и времени до них.
+        Извлекает информацию о станциях метро и времени до них ТОЛЬКО ПЕШКОМ.
+        Исключает время на транспорте/машине.
         
         Args:
             soup: BeautifulSoup объект страницы
             
         Returns:
-            list: Список словарей с информацией о станциях метро
-                  [{'station': 'Полежаевская', 'time': '8 мин.'}, ...]
+            list: Список словарей с информацией о станциях метро (только пешком)
+                  [{'station': 'Полежаевская', 'time': '8 мин пешком'}, ...]
         """
         metro_info = []
         
@@ -142,8 +143,8 @@ class Parser:
                         time_span = item.find('span', class_='xa15a2ab7--d9f62d--underground_time')
                         travel_time = time_span.get_text(strip=True) if time_span else None
                         
-                        # Добавляем информацию если оба значения найдены
-                        if station_name and travel_time:
+                        # ФИЛЬТРУЕМ: учитываем только время пешком
+                        if station_name and travel_time and self._is_walking_time(travel_time):
                             metro_info.append({
                                 'station': station_name,
                                 'time': travel_time
@@ -157,6 +158,46 @@ class Parser:
             print(f"Ошибка при поиске информации о метро: {e}")
             
         return metro_info
+    
+    def _is_walking_time(self, time_text):
+        """
+        Проверяет, является ли указанное время временем пешком.
+        
+        Args:
+            time_text (str): Текст времени ("8 мин пешком", "5 мин на транспорте", "10 мин")
+            
+        Returns:
+            bool: True если время пешком, False - если на транспорте/машине
+        """
+        if not time_text:
+            return False
+            
+        time_lower = time_text.lower()
+        
+        # Исключаем явные указания на транспорт/машину
+        transport_keywords = [
+            'на транспорте', 'на машине', 'автобус', 'транспорт', 
+            'на авто', 'автомобиль', 'маршрутка', 'трамвай', 'троллейбус'
+        ]
+        
+        for keyword in transport_keywords:
+            if keyword in time_lower:
+                return False
+        
+        # Принимаем если явно указано "пешком" или нет уточнения способа передвижения
+        walking_keywords = ['пешком', 'пешки', 'пеший']
+        
+        # Если есть явное указание на пешком - принимаем
+        for keyword in walking_keywords:
+            if keyword in time_lower:
+                return True
+        
+        # Если нет уточнения способа передвижения, считаем что это пешком
+        # (по умолчанию на Cian время без уточнения = пешком)
+        if 'мин' in time_lower and not any(word in time_lower for word in transport_keywords):
+            return True
+            
+        return False
 
     def parse(self, url, start_page=None, end_page=None, write_to_file=False, deep_parse=False):
         """Основной метод парсинга"""

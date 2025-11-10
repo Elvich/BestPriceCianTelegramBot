@@ -5,6 +5,11 @@
 config/.env
 !config/.env.example
 
+# Test and demo files (optional)
+test_metro_filter.py
+demo_metro_fix.py
+cleanup_transport_metro.py
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]
@@ -217,6 +222,12 @@ __marimo__/
 floats.txt
 Test.py
 apartments.csv
+
+# Development documentation and planning files
+PROJECT_ANALYSIS.md
+TODO_DEVELOPMENT_PLAN.md
+TODO_CHECKLIST.md
+PRODUCT_FEATURES.md
 
 # Generated Excel files
 *.xlsx
