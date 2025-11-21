@@ -5,7 +5,6 @@
 
 import asyncio
 import logging
-from typing import Optional, List
 from aiogram import Bot
 from aiogram.exceptions import TelegramBadRequest, TelegramForbiddenError, TelegramNetworkError
 
@@ -160,40 +159,6 @@ class NotificationSender:
             
         except Exception as e:
             logger.error(f"Ошибка отправки персонального уведомления: {e}")
-            return False
-
-    async def test_notification_system(self, test_user_id: int) -> bool:
-        """
-        Тестирует систему уведомлений на конкретном пользователе
-        
-        Args:
-            test_user_id: ID тестового пользователя
-            
-        Returns:
-            True если тест прошел успешно
-        """
-        try:
-            test_message = (
-                "🧪 **Тестовое уведомление**\n\n"
-                "Система уведомлений работает корректно!\n"
-                "Вы будете получать уведомления о новых выгодных квартирах."
-            )
-            
-            result = await self.send_notification_to_user(
-                telegram_id=test_user_id,
-                message=test_message,
-                show_new_button=False
-            )
-            
-            if result:
-                logger.info(f"Тест уведомлений успешен для пользователя {test_user_id}")
-            else:
-                logger.warning(f"Тест уведомлений не прошел для пользователя {test_user_id}")
-                
-            return result
-            
-        except Exception as e:
-            logger.error(f"Ошибка при тестировании уведомлений: {e}")
             return False
 
     async def get_sending_stats(self) -> dict:

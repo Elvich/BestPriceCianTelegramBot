@@ -8,8 +8,7 @@ from datetime import datetime
 
 # Добавляем путь к родительской директории для импорта config
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
-from Bot.Router import router
+from Bot.router import router
 from config import config
 from Bot.error_handlers import check_telegram_connection, NetworkMonitor
 from Bot.notification_sender import NotificationSender
@@ -26,16 +25,10 @@ def setup_logging():
         ]
     )
     
-    # Настраиваем логгер для aiogram
-    aiogram_logger = logging.getLogger('aiogram')
-    aiogram_logger.setLevel(logging.WARNING)  # Уменьшаем количество логов от aiogram
-    
-    # Настраиваем собственный логгер
     logger = logging.getLogger(__name__)
     return logger
 
 async def main():
-    """Основная функция запуска бота."""
     logger = setup_logging()
     
     try:
@@ -53,10 +46,9 @@ async def main():
         dp = Dispatcher()
         dp.include_router(router)
         
-        # Проверяем соединение с Telegram API
-        logger.info("🔍 Проверяем соединение с Telegram API...")
+        # Проверяем соединение с Telegram
         if not await check_telegram_connection(bot):
-            logger.error("❌ Не удается подключиться к Telegram API. Проверьте интернет-соединение и токен бота.")
+            logger.error("❌ Не удается подключиться к Telegram. Проверьте интернет-соединение и токен бота.")
             sys.exit(1)
         
         # Создаем монитор сети
@@ -80,9 +72,8 @@ async def main():
             else:
                 logger.exception("Необработанное исключение в боте:")
             
-            return True  # Говорим диспетчеру, что ошибка обработана
+            return True  
         
-        # Создаем фоновую задачу для отправки уведомлений
         async def notification_task():
             """Фоновая задача для отправки уведомлений"""
             while True:
@@ -98,8 +89,8 @@ async def main():
         # Запускаем фоновую задачу
         notification_task_handle = asyncio.create_task(notification_task())
         
-        logger.info("🚀 Бот готов к работе. Начинаем polling...")
-        logger.info("📱 Запущена фоновая задача отправки уведомлений")
+        logger.info("Бот готов к работе")
+        logger.info("Запущена фоновая задача отправки уведомлений")
         
         try:
             await dp.start_polling(bot, skip_updates=True)
@@ -126,6 +117,6 @@ if __name__ == "__main__":
     try:
         asyncio.run(main())
     except KeyboardInterrupt:
-        logging.getLogger(__name__).info("\n🛑 Бот остановлен пользователем")
+        logging.getLogger(__name__).info("\nБот остановлен пользователем")
     except Exception as e:
         logging.getLogger(__name__).exception(f"Критическая ошибка при запуске: {e}")

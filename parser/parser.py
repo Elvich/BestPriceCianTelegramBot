@@ -2,7 +2,6 @@ import requests
 from bs4 import BeautifulSoup
 import time
 from tqdm import tqdm
-from utils.file_saver import Saver
 from config import config
  
 class Parser:
@@ -92,10 +91,6 @@ class Parser:
                 page_items.append(parsed_card)
         
         return page_items
-
-    def _save_to_file(self, source_url=None):
-        """Сохраняет результаты в CSV файл"""
-        Saver(filename='apartments.csv', source_url=source_url).save(data=self.kvs)
 
     def _deep_parse(self, url):
         """Глубокий парсинг страницы с детальным извлечением данных"""

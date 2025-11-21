@@ -3,7 +3,6 @@
 Проверяет квартиры из staging БД на соответствие условиям и перемещает подходящие в основную БД.
 """
 
-import asyncio
 from abc import ABC, abstractmethod
 from typing import List, Dict, Any, Optional
 from dataclasses import dataclass

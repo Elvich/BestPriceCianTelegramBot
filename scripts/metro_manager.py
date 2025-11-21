@@ -11,8 +11,6 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from config.metro_config import (
     get_blocked_stations, 
     get_preferred_stations,
-    is_station_blocked,
-    is_station_preferred,
     get_station_priority
 )
 

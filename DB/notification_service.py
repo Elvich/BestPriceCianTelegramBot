@@ -3,7 +3,6 @@
 Отправляет пользователям уведомления о новых одобренных квартирах.
 """
 
-import asyncio
 import logging
 from datetime import datetime, timedelta
 from typing import List, Dict, Optional

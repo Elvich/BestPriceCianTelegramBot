@@ -11,7 +11,7 @@ from datetime import datetime, timedelta
 
 from DB.apartment_service import ApartmentService
 from DB.Models import async_session, Apartment, MetroStation
-from utils.excel_exporter import ExcelExporter
+from scripts.excel_exporter import ExcelExporter
 
 async def show_statistics():
     """Показывает общую статистику по базе данных"""

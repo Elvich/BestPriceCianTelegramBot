@@ -9,9 +9,9 @@ from DB.apartment_service import ApartmentService
 from DB.filter_service import FilterService, DEFAULT_FILTER_CONFIG, BARGAIN_HUNTER_CONFIG
 
 async def parsing(url):
-    """Демонстрация парсинга данных с сайта"""
+    """Прсинга данных с сайта"""
     
-    print("🚀 Запуск парсинга квартир с Cian.ru")
+    print("Запуск парсинга квартир с Cian.ru")
     print("=" * 50)
     
     # Создаем парсер
@@ -19,7 +19,7 @@ async def parsing(url):
     
     try:
         # Парсим данные с реальной ссылки Cian
-        print("🔍 Парсинг квартир с Cian.ru (глубокий парсинг 2 страниц)...")
+        print("🔍 Парсинг квартир с Cian.ru")
         url = url  # Используем переданный URL
         
         # Используем глубокий парсинг для получения полной информации
@@ -88,7 +88,6 @@ async def parsing(url):
         
         print(f"✅ Обработано {len(apartment_objects)} квартир")
         
-        # НОВАЯ ЛОГИКА: Переводим отклоненные квартиры обратно в pending для пересмотра
         print("\n🔄 Пересмотр ранее отклоненных квартир из этого источника...")
         reprocess_stats = await ApartmentService.reprocess_rejected_apartments_for_source(url)
         if reprocess_stats['reprocessed'] > 0:
@@ -101,7 +100,6 @@ async def parsing(url):
         saved_count = 0
         updated_count = 0
         
-        # Сохраняем объекты через async session напрямую
         from DB.Models import async_session
         from sqlalchemy import select, and_
         from datetime import datetime
@@ -178,7 +176,7 @@ async def parsing(url):
         staging_stats = await ApartmentService.get_statistics(staging_only=True)
         production_stats = await ApartmentService.get_statistics(staging_only=False)
         
-        print(f"\n📈 Статистика единой базы данных:")
+        print(f"\nСтатистика базы данных:")
         print(f"   Staging: {staging_stats['total_apartments']} (pending: {staging_stats['pending_apartments']})")
         print(f"   Production: {production_stats['total_apartments']} (средняя цена: {production_stats['average_price']:,.0f} ₽)")
         
@@ -209,7 +207,7 @@ async def parsing(url):
                         print(f"   🚇 {', '.join(metro_info)}")
                     print(f"   🔗 {apartment.url}")
         except Exception as e:
-            print(f"   ⚠️ Не удалось загрузить примеры: {e}")
+            print(f" ⚠️ Не удалось загрузить примеры: {e}")
     
     except Exception as e:
         print(f"❌ Ошибка: {e}")
@@ -218,10 +216,8 @@ async def parsing(url):
         print("\n✨ Демо парсинга завершено!")
 
 async def filtering():
-    
-    
     print("\n" + "=" * 50)
-    print("🔍 Демо системы фильтрации")
+    print("Фильтрация")
     print("=" * 50)
     
     try:
@@ -269,10 +265,10 @@ async def filtering():
         print(f"❌ Ошибка фильтрации: {e}")
 
 async def bargain_hunting():
-    """Демонстрация охоты за выгодными предложениями"""
+    """Самые выгодными предложениями"""
     
     print("\n" + "=" * 50)
-    print("🎯 Демо охоты за выгодными сделками")
+    print("Выгодными сделками")
     print("=" * 50)
     
     try:
@@ -283,13 +279,12 @@ async def bargain_hunting():
             print("⚠️  В staging нет неообработанных квартир")
             return
         
-        print(f"🎯 Поиск супер-скидок (минимум {BARGAIN_HUNTER_CONFIG.min_market_discount_percent}% скидка к рынку)")
         
         # Запускаем агрессивную фильтрацию
         bargain_service = FilterService(BARGAIN_HUNTER_CONFIG)
         results = await bargain_service.process_apartments(limit=20)
         
-        print(f"\n🏆 Результаты охоты за скидками:")
+        print(f"\nСамые выкодные предложения:")
         print(f"   Обработано: {results['processed']}")
         print(f"   Найдено выгодных: {results['approved']}")
         print(f"   Отклонено: {results['rejected']}")
@@ -297,9 +292,9 @@ async def bargain_hunting():
         if results['approved'] > 0:
             success_rate = (results['approved'] / results['processed']) * 100
             print(f"   Успешность поиска: {success_rate:.1f}%")
-            print("   🎉 Найдены квартиры с большими скидками!")
+            print("   🎉 Найдены очень выгодные квартиры")
         else:
-            print("   😔 Супер-выгодных предложений не найдено")
+            print("   Не найдено")
             
     except Exception as e:
         print(f"❌ Ошибка охоты за скидками: {e}")
@@ -308,7 +303,6 @@ async def full_cycle(url):
     """Полный цикл: парсинг → staging → фильтрация → production"""
     
     print("=" * 50)
-    print("Этапы: Парсинг → Staging → Фильтрация → Production")
     
     # 1. Парсинг и сохранение в staging
     await parsing(url)

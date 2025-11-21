@@ -1,8 +1,3 @@
-"""
-Обновленный скрипт фильтрации с объединенной архитектурой.
-Использует одну БД и расширенный ApartmentService.
-"""
-
 import asyncio
 import sys
 import argparse
