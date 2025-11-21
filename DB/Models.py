@@ -7,7 +7,7 @@ import os
 
 # Добавляем путь к родительской директории для импорта config
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from config import config
+from config.config import config
 
 engine = create_async_engine(config.DATABASE_URL)
 async_session = async_sessionmaker(engine)

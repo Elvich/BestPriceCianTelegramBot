@@ -2,7 +2,7 @@ import asyncio
 import sys
 
 
-from config import config
+from config.config import config
 from parser.parser import Parser
 from parser.url import CIAN_URLS
 from DB.apartment_service import ApartmentService

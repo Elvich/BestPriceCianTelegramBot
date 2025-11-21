@@ -418,7 +418,7 @@ def get_default_filter_config() -> FilterConfig:
     import sys
     import os
     sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-    from config import config
+    from config.config import config
     
     return FilterConfig(
         # Рыночные фильтры - основа системы
@@ -446,7 +446,7 @@ def get_premium_filter_config() -> FilterConfig:
     import sys
     import os
     sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-    from config import config
+    from config.config import config
     
     return FilterConfig(
         # Рыночные фильтры - более строгие
@@ -484,7 +484,7 @@ def get_bargain_hunter_config() -> FilterConfig:
     import sys
     import os
     sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-    from config import config
+    from config.config import config
     
     return FilterConfig(
         # Основной фокус - рыночные цены
@@ -510,7 +510,7 @@ def get_bootstrap_config() -> FilterConfig:
     import sys
     import os
     sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-    from config import config
+    from config.config import config
     
     return FilterConfig(
         # Отключаем рыночный фильтр для создания базы сравнения

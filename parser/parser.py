@@ -1,8 +1,14 @@
+import sys
+import os
+
+# Add project root to sys.path
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 import requests
 from bs4 import BeautifulSoup
 import time
 from tqdm import tqdm
-from config import config
+from config.config import config
  
 class Parser:
     """
@@ -65,13 +71,24 @@ class Parser:
         """
         try:
             # Извлекаем основные данные объявления
-            link = card.find('a', class_='_93444fe79c--link--eoxce').get('href')
-            name = card.find('span', {'data-mark': 'OfferTitle'}).get_text(strip=True)
-            price_per_sqm = card.find('p', {'data-mark': 'PriceInfo'}).get_text(strip=True)
-            price = card.find('span', {'data-mark': 'MainPrice'}).get_text(strip=True)
+            # Ищем ссылку с data-name="TitleComponent" или просто первую ссылку
+            link_el = card.find('a', {'data-name': 'TitleComponent'})
+            if not link_el:
+                link_el = card.find('a') # Fallback
+                
+            link = link_el.get('href')
+            
+            name_el = card.find('span', {'data-mark': 'OfferTitle'})
+            name = name_el.get_text(strip=True) if name_el else "Без названия"
+            
+            price_per_sqm_el = card.find('p', {'data-mark': 'PriceInfo'})
+            price_per_sqm = price_per_sqm_el.get_text(strip=True) if price_per_sqm_el else ""
+            
+            price_el = card.find('span', {'data-mark': 'MainPrice'})
+            price = price_el.get_text(strip=True) if price_el else ""
             
             return [link, name, price, price_per_sqm]
-        except AttributeError as e:
+        except Exception as e:
             # Если структура страницы изменилась или элемент не найден
             print(f"Ошибка при парсинге карточки: {e}")
             return None
@@ -82,7 +99,12 @@ class Parser:
         html_content = self._fetch_page_content(current_url)
         
         soup = BeautifulSoup(html_content, 'lxml')
-        cards = soup.find_all('div', class_='_93444fe79c--card--ibP42')
+        # Обновленный селектор для карточек
+        cards = soup.find_all('article', {'data-name': 'CardComponent'})
+        
+        # Если не нашли по новому селектору, пробуем старый (на всякий случай)
+        if not cards:
+             cards = soup.find_all('div', class_='_93444fe79c--card--ibP42')
         
         page_items = []
         for card in cards:
@@ -99,7 +121,17 @@ class Parser:
 
         # Извлекаем дополнительные данные из карточки
         details = {}
-        details['address'] = soup.find('span', {'itemprop': 'name'}).get('content')
+        
+        # Извлекаем адрес
+        # Ищем контейнер Geo, так как на странице много элементов с itemprop="name" (например, в хлебных крошках)
+        geo_div = soup.find('div', {'data-name': 'Geo'})
+        if geo_div:
+            address_span = geo_div.find('span', {'itemprop': 'name'})
+            details['address'] = address_span.get('content') if address_span else None
+        else:
+            # Fallback: пробуем найти первый span с itemprop="name" и атрибутом content
+            address_span = soup.find('span', {'itemprop': 'name', 'content': True})
+            details['address'] = address_span.get('content') if address_span else None
         
         # Извлекаем информацию о станциях метро
         details['metro_stations'] = self._extract_metro_info(soup)
