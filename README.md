@@ -6,7 +6,7 @@
 ```bash
 git clone https://github.com/Elvich/BestPriceCianTelegramBot.git
 cd BestPriceCianTelegramBot
-pip3 install -r requirements.txt
+pip3 install -r config/requirements.txt
 ```
 
 ### 2. Настройка конфигурации
