@@ -16,7 +16,7 @@ class RetryConfig:
         import sys
         import os
         sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-        from config import config
+        from config.config import config
         
         self.max_retries = max_retries if max_retries is not None else config.NETWORK_RETRY_MAX_ATTEMPTS
         self.base_delay = base_delay if base_delay is not None else config.NETWORK_RETRY_BASE_DELAY

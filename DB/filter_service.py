@@ -72,6 +72,21 @@ class PriceFilter(BaseFilter):
         if not apartment.price:
             return {'passed': False, 'reason': 'Цена не указана'}
         
+        # Assign price segment FIRST
+        if apartment.price < 15_000_000:
+            apartment.price_segment = 1
+        elif 15_000_000 <= apartment.price < 20_000_000:
+            apartment.price_segment = 2
+        elif 20_000_000 <= apartment.price <= 30_000_000:
+            apartment.price_segment = 3
+        else:
+            # > 30M or other cases
+            apartment.price_segment = None
+
+        # Hard cap 30M
+        if apartment.price > 30_000_000:
+             return {'passed': False, 'reason': f'Цена выше 30 млн: {apartment.price:,}'}
+
         if self.config.min_price and apartment.price < self.config.min_price:
             return {'passed': False, 'reason': f'Цена слишком низкая: {apartment.price:,}'}
         
@@ -259,12 +274,12 @@ class MarketPriceFilter(BaseFilter):
         market_data = await ApartmentService.get_market_benchmark(apartment)
         
         if not market_data['benchmark'] or not market_data['benchmark']['average_price']:
-            return {'passed': True, 'reason': 'Недостаточно данных для сравнения с рынком'}
+            return {'passed': False, 'reason': 'Недостаточно данных для сравнения с рынком'}
         
         price_deviation = market_data['price_deviation_percent']
         
         if price_deviation is None:
-            return {'passed': True, 'reason': 'Не удалось рассчитать отклонение от рынка'}
+            return {'passed': False, 'reason': 'Не удалось рассчитать отклонение от рынка'}
         
         # Проверяем, что квартира дешевле рынка на 10% или больше
         discount_threshold = getattr(self.config, 'min_market_discount_percent', 10)
@@ -426,7 +441,7 @@ def get_default_filter_config() -> FilterConfig:
         min_market_discount_percent=config.DEFAULT_FILTER_MIN_MARKET_DISCOUNT,
         
         # Ценовые ограничения
-        max_price=config.DEFAULT_FILTER_MAX_PRICE,
+        max_price=30_000_000, # Hard cap 30M
         min_price=config.DEFAULT_FILTER_MIN_PRICE,
         
         # Географические ограничения
@@ -440,94 +455,3 @@ def get_default_filter_config() -> FilterConfig:
 
 # Создаем конфигурацию из переменных окружения
 DEFAULT_FILTER_CONFIG = get_default_filter_config()
-
-def get_premium_filter_config() -> FilterConfig:
-    """Создает конфигурацию PREMIUM фильтра из переменных окружения"""
-    import sys
-    import os
-    sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-    from config.config import config
-    
-    return FilterConfig(
-        # Рыночные фильтры - более строгие
-        enable_market_filter=True,
-        min_market_discount_percent=config.PREMIUM_FILTER_MIN_MARKET_DISCOUNT,
-        
-        # Ценовые ограничения
-        max_price=config.PREMIUM_FILTER_MAX_PRICE,
-        min_price=config.PREMIUM_FILTER_MIN_PRICE,
-        max_price_per_sqm=config.PREMIUM_FILTER_MAX_PRICE_PER_SQM,
-        
-        # Географические ограничения
-        required_metro_distance=config.PREMIUM_FILTER_REQUIRED_METRO_DISTANCE,
-        # Только предпочитаемые станции для премиум конфигурации
-        allowed_metro_stations=[
-            'Красносельская', 'Комсомольская', 'Сокольники', 
-            'Преображенская площадь', 'Сокол', 'Войковская'
-        ],
-        
-        # Характеристики квартир
-        min_area=config.PREMIUM_FILTER_MIN_AREA,
-        allowed_rooms=[2, 3, 4],  # 2-4 комнаты
-        min_floor=config.PREMIUM_FILTER_MIN_FLOOR,
-        max_floor=config.PREMIUM_FILTER_MAX_FLOOR,
-        
-        # Качество объявления
-        blocked_keywords=['студия', 'коммунальная', 'доля', 'комната', 'хрущевка', 'хостел'],
-        check_duplicates=True
-    )
-
-PREMIUM_FILTER_CONFIG = get_premium_filter_config()
-
-def get_bargain_hunter_config() -> FilterConfig:
-    """Создает конфигурацию BARGAIN HUNTER фильтра из переменных окружения"""
-    import sys
-    import os
-    sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-    from config.config import config
-    
-    return FilterConfig(
-        # Основной фокус - рыночные цены
-        enable_market_filter=True,
-        min_market_discount_percent=config.BARGAIN_FILTER_MIN_MARKET_DISCOUNT,
-        
-        # Минимальные ограничения для поиска максимальных скидок
-        max_price=config.BARGAIN_FILTER_MAX_PRICE,
-        min_price=config.BARGAIN_FILTER_MIN_PRICE,
-        required_metro_distance=config.BARGAIN_FILTER_REQUIRED_METRO_DISTANCE,
-        
-        # Только базовые фильтры качества
-        min_title_length=config.BARGAIN_FILTER_MIN_TITLE_LENGTH,
-        blocked_keywords=['доля', 'коммунальная'],
-        check_duplicates=True
-    )
-
-# Конфигурация только для поиска выгодных сделок
-BARGAIN_HUNTER_CONFIG = get_bargain_hunter_config()
-
-def get_bootstrap_config() -> FilterConfig:
-    """Создает конфигурацию BOOTSTRAP фильтра из переменных окружения"""
-    import sys
-    import os
-    sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-    from config.config import config
-    
-    return FilterConfig(
-        # Отключаем рыночный фильтр для создания базы сравнения
-        enable_market_filter=False,
-        
-        # Базовые ограничения - очень либеральные
-        max_price=config.BOOTSTRAP_FILTER_MAX_PRICE,
-        min_price=config.BOOTSTRAP_FILTER_MIN_PRICE,
-        
-        # НЕ требуем метро для первоначального наполнения
-        required_metro_distance=None,  # отключаем проверку расстояния до метро
-        
-        # Минимальное качество
-        min_title_length=config.BOOTSTRAP_FILTER_MIN_TITLE_LENGTH,
-        blocked_keywords=['доля', 'коммунальная'],  # минимум блокировок
-        check_duplicates=True
-    )
-
-# Конфигурация для первоначального наполнения БД (без рыночного фильтра)
-BOOTSTRAP_CONFIG = get_bootstrap_config()

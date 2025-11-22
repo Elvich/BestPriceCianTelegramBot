@@ -11,7 +11,7 @@ import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from DB.Models import Base, engine
-from config import config
+from config.config import config
 
 async def create_tables():
     """Создает все таблицы в базе данных"""
