@@ -243,6 +243,10 @@ class CharacteristicsFilter(BaseFilter):
             if apartment.floors_total and apartment.floor == apartment.floors_total:
                 return {'passed': False, 'reason': f'Квартира на последнем этаже ({apartment.floor}/{apartment.floors_total})'}
         
+        # Отклоняем квартиры в домах с 5 или меньше этажами
+        if apartment.floors_total and apartment.floors_total <= 5:
+            return {'passed': False, 'reason': f'Дом слишком низкий: {apartment.floors_total} этажей (требуется >5)'}
+        
         return {'passed': True, 'reason': 'Характеристики соответствуют критериям'}
 
 
