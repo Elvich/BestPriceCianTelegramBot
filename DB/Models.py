@@ -35,6 +35,7 @@ class Apartment(Base):
     floors_total: Mapped[int] = mapped_column(Integer, nullable=True)
     area: Mapped[float] = mapped_column(Float, nullable=True)
     rooms: Mapped[int] = mapped_column(Integer, nullable=True)
+    views_per_day: Mapped[int] = mapped_column(Integer, nullable=True)  # Просмотры за сутки
     
     # Метаданные
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)

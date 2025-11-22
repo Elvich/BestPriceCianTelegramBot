@@ -72,6 +72,9 @@ async def parsing(url):
                     price=price,
                     price_per_sqm=price_per_sqm,
                     address=details.get('address', ''),
+                    floor=details.get('floor'),
+                    floors_total=details.get('floors_total'),
+                    views_per_day=details.get('views_per_day'),
                     is_staging=True,
                     filter_status='pending'
                 )

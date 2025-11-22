@@ -135,6 +135,15 @@ class Parser:
         
         # Извлекаем информацию о станциях метро
         details['metro_stations'] = self._extract_metro_info(soup)
+        
+        # Извлекаем информацию об этажах
+        floor_info = self._extract_floor_info(soup)
+        if floor_info:
+            details['floor'] = floor_info.get('floor')
+            details['floors_total'] = floor_info.get('floors_total')
+        
+        # Извлекаем просмотры за сутки
+        details['views_per_day'] = self._extract_views(soup)
 
         return details
 
@@ -189,12 +198,7 @@ class Parser:
     def _is_walking_time(self, time_text):
         """
         Проверяет, является ли указанное время временем пешком.
-        
-        Args:
-            time_text (str): Текст времени ("8 мин пешком", "5 мин на транспорте", "10 мин")
-            
-        Returns:
-            bool: True если время пешком, False - если на транспорте/машине
+        Возвращает True, если текст содержит слова "пешком", но не содержит "транспорт" или "машин".
         """
         if not time_text:
             return False
@@ -225,6 +229,94 @@ class Parser:
             return True
             
         return False
+    
+    def _extract_floor_info(self, soup):
+        """
+        Извлекает информацию об этаже квартиры.
+        
+        Args:
+            soup: BeautifulSoup объект страницы
+            
+        Returns:
+            dict: {'floor': int, 'floors_total': int} или None
+        """
+        import re
+        
+        try:
+            # Ищем текст вида "5/21 этаж" или "5 из 21"
+            # Типичные селекторы для информации об этаже
+            floor_patterns = [
+                # Вариант 1: текст с "этаж"
+                (soup.find_all(string=re.compile(r'\d+/\d+\s*этаж', re.I)), r'(\d+)/(\d+)'),
+                # Вариант 2: текст "X из Y"
+                (soup.find_all(string=re.compile(r'\d+\s*из\s*\d+', re.I)), r'(\d+)\s*из\s*(\d+)'),
+            ]
+            
+            for elements, pattern in floor_patterns:
+                for element in elements:
+                    text = element.strip()
+                    match = re.search(pattern, text)
+                    if match:
+                        floor = int(match.group(1))
+                        floors_total = int(match.group(2))
+                        return {'floor': floor, 'floors_total': floors_total}
+            
+            # Если не нашли в тексте, ищем в атрибутах и структурированных данных
+            # Попытка найти через data-атрибуты или специальные классы
+            floor_containers = soup.find_all(['div', 'span'], class_=re.compile(r'floor', re.I))
+            for container in floor_containers:
+                text = container.get_text(strip=True)
+                match = re.search(r'(\d+)/(\d+)', text)
+                if match:
+                    floor = int(match.group(1))
+                    floors_total = int(match.group(2))
+                    return {'floor': floor, 'floors_total': floors_total}
+                    
+        except Exception as e:
+            print(f"Ошибка при извлечении информации об этаже: {e}")
+        
+        return None
+    
+    def _extract_views(self, soup):
+        """
+        Извлекает количество просмотров за сутки.
+        
+        Args:
+            soup: BeautifulSoup объект страницы
+            
+        Returns:
+            int: количество просмотров или None
+        """
+        import re
+        
+        try:
+            # Ищем текст вида "X просмотров за сутки" или "X просмотров сегодня"
+            view_patterns = [
+                r'(\d+)\s*за сегодня',
+                r'(\d+)\s*view',
+            ]
+            
+            # Ищем по всему тексту страницы
+            page_text = soup.get_text()
+            
+            for pattern in view_patterns:
+                matches = re.findall(pattern, page_text, re.I)
+                if matches:
+                    # Берем первое найденное число
+                    return int(matches[0])
+            
+            # Попытка найти через специальные классы или data-атрибуты
+            view_containers = soup.find_all(['div', 'span'], class_=re.compile(r'view|за сегодня', re.I))
+            for container in view_containers:
+                text = container.get_text(strip=True)
+                match = re.search(r'(\d+)', text)
+                if match:
+                    return int(match.group(1))
+                    
+        except Exception as e:
+            print(f"Ошибка при извлечении просмотров: {e}")
+        
+        return None
 
     def parse(self, url, start_page=None, end_page=None, write_to_file=False, deep_parse=False):
         """Основной метод парсинга"""

@@ -234,6 +234,14 @@ class CharacteristicsFilter(BaseFilter):
             
             if self.config.max_floor and apartment.floor > self.config.max_floor:
                 return {'passed': False, 'reason': f'Этаж слишком высокий: {apartment.floor}'}
+            
+            # Отклоняем квартиры на первом этаже
+            if apartment.floor == 1:
+                return {'passed': False, 'reason': 'Квартира на первом этаже'}
+            
+            # Отклоняем квартиры на последнем этаже
+            if apartment.floors_total and apartment.floor == apartment.floors_total:
+                return {'passed': False, 'reason': f'Квартира на последнем этаже ({apartment.floor}/{apartment.floors_total})'}
         
         return {'passed': True, 'reason': 'Характеристики соответствуют критериям'}
 
@@ -368,6 +376,7 @@ class FilterService:
                 # Проверяем через все фильтры
                 all_passed = True
                 rejection_reasons = []
+                fast_track_approved = False  # Флаг для быстрого одобрения
                 
                 for filter_instance in self.filters:
                     result = await filter_instance.check(apartment)
@@ -380,17 +389,31 @@ class FilterService:
                         result['reason']
                     )
                     
+                    # После PriceFilter проверяем просмотры для fast-track
+                    if filter_instance.name == 'PriceFilter' and result['passed']:
+                        if apartment.views_per_day and apartment.views_per_day > 200:
+                            # Fast-track: автоматически одобряем популярные квартиры
+                            fast_track_approved = True
+                            await ApartmentService.log_filter_result(
+                                apartment.cian_id,
+                                'FastTrackFilter',
+                                'pass',
+                                f'Автоодобрено: {apartment.views_per_day} просмотров за день (>200)'
+                            )
+                            break  # Пропускаем остальные фильтры
+                    
                     if not result['passed']:
                         all_passed = False
                         rejection_reasons.append(f"{filter_instance.name}: {result['reason']}")
                 
                 # Определяем финальный статус
-                if all_passed:
-                    # Квартира прошла все фильтры - одобряем
+                if all_passed or fast_track_approved:
+                    # Квартира прошла все фильтры или была автоодобрена
+                    reason = 'Fast-track: популярная квартира' if fast_track_approved else 'Прошла все фильтры'
                     await ApartmentService.mark_apartment_processed(
                         apartment.cian_id, 
                         'approved',
-                        'Прошла все фильтры'
+                        reason
                     )
                     
                     # Перемещаем в основную БД
