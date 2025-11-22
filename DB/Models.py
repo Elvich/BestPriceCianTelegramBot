@@ -7,7 +7,7 @@ import os
 
 # Добавляем путь к родительской директории для импорта config
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from config import config
+from config.config import config
 
 engine = create_async_engine(config.DATABASE_URL)
 async_session = async_sessionmaker(engine)
@@ -35,6 +35,7 @@ class Apartment(Base):
     floors_total: Mapped[int] = mapped_column(Integer, nullable=True)
     area: Mapped[float] = mapped_column(Float, nullable=True)
     rooms: Mapped[int] = mapped_column(Integer, nullable=True)
+    views_per_day: Mapped[int] = mapped_column(Integer, nullable=True)  # Просмотры за сутки
     
     # Метаданные
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
@@ -45,6 +46,7 @@ class Apartment(Base):
     # Поля для фильтрации (только для staging записей)
     filter_status: Mapped[str] = mapped_column(String(20), nullable=True, default='pending')  # 'pending', 'approved', 'rejected'
     filter_reason: Mapped[str] = mapped_column(Text, nullable=True)  # Причина отклонения
+    price_segment: Mapped[int] = mapped_column(Integer, nullable=True)  # 1: <15M, 2: 15-20M, 3: 20-30M
     processed_at: Mapped[datetime] = mapped_column(DateTime, nullable=True)  # Время обработки фильтрами
     
     # Поля для системы уведомлений

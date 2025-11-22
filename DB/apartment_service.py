@@ -341,7 +341,8 @@ class ApartmentService:
         rooms: Optional[int] = None,
         metro_station: Optional[str] = None,
         exclude_cian_id: Optional[str] = None,
-        source_url: Optional[str] = None
+        source_url: Optional[str] = None,
+        price_segment: Optional[int] = None
     ) -> Dict[str, Any]:
         """
         Вычисляет средневзвешенную цену среди НОВЫХ (staging) квартир
@@ -351,6 +352,7 @@ class ApartmentService:
             metro_station: Станция метро (None = все)
             exclude_cian_id: Исключить квартиру из расчета (саму тестируемую)
             source_url: Источник данных - URL поиска (None = все источники)
+            price_segment: Ценовой сегмент (None = все)
             
         Returns:
             Dict с метриками: average_price, median_price, count, price_per_sqm
@@ -380,6 +382,9 @@ class ApartmentService:
             # Дополнительные фильтры
             if rooms is not None:
                 conditions.append(Apartment.rooms == rooms)
+            
+            if price_segment is not None:
+                conditions.append(Apartment.price_segment == price_segment)
                 
             # Если указана станция метро, нужно джойнить с MetroStation
             query = select(Apartment)
@@ -404,7 +409,8 @@ class ApartmentService:
                     'count': 0,
                     'rooms': rooms,
                     'metro_station': metro_station,
-                    'source_url': source_url
+                    'source_url': source_url,
+                    'price_segment': price_segment
                 }
             
             # Вычисляем метрики
@@ -422,7 +428,8 @@ class ApartmentService:
                 'count': len(apartments),
                 'rooms': rooms,
                 'metro_station': metro_station,
-                'source_url': source_url
+                'source_url': source_url,
+                'price_segment': price_segment
             }
     
     @staticmethod
@@ -443,68 +450,74 @@ class ApartmentService:
         metro_station = None
         comparison_type = 'unknown'
         
-        # 1. Попытка найти бенчмарк по source_url + метро + комнаты
+        # 1. Попытка найти бенчмарк по source_url + метро + комнаты + сегмент
         if apartment.source_url and apartment.metro_stations:
             metro_station = apartment.metro_stations[0].station_name
             benchmark = await ApartmentService.calculate_staging_average_price(
                 rooms=apartment.rooms,
                 metro_station=metro_station,
                 exclude_cian_id=apartment.cian_id,
-                source_url=apartment.source_url
+                source_url=apartment.source_url,
+                price_segment=apartment.price_segment
             )
             if benchmark and benchmark['count'] >= 2:
-                comparison_type = 'source_metro_rooms'
+                comparison_type = 'source_metro_rooms_segment'
         
-        # 2. Попытка найти бенчмарк по source_url + комнаты (без метро)
+        # 2. Попытка найти бенчмарк по source_url + комнаты + сегмент (без метро)
         if (not benchmark or benchmark['count'] < 2) and apartment.source_url:
             benchmark = await ApartmentService.calculate_staging_average_price(
                 rooms=apartment.rooms,
                 exclude_cian_id=apartment.cian_id,
-                source_url=apartment.source_url
+                source_url=apartment.source_url,
+                price_segment=apartment.price_segment
             )
             if benchmark and benchmark['count'] >= 2:
-                comparison_type = 'source_rooms'
+                comparison_type = 'source_rooms_segment'
                 metro_station = None
         
-        # 3. Попытка найти бенчмарк по source_url (все квартиры из источника)
+        # 3. Попытка найти бенчмарк по source_url + сегмент (все квартиры из источника)
         if (not benchmark or benchmark['count'] < 2) and apartment.source_url:
             benchmark = await ApartmentService.calculate_staging_average_price(
                 exclude_cian_id=apartment.cian_id,
-                source_url=apartment.source_url
+                source_url=apartment.source_url,
+                price_segment=apartment.price_segment
             )
             if benchmark and benchmark['count'] >= 2:
-                comparison_type = 'source_general'
+                comparison_type = 'source_general_segment'
                 metro_station = None
         
-        # 4. Fallback: если source_url не дает результатов, используем глобальную статистику (старая логика)
+        # 4. Fallback: если source_url не дает результатов, используем глобальную статистику + сегмент
         if not benchmark or benchmark['count'] < 2:
             if apartment.metro_stations:
                 metro_station = apartment.metro_stations[0].station_name
                 benchmark = await ApartmentService.calculate_staging_average_price(
                     rooms=apartment.rooms,
                     metro_station=metro_station,
-                    exclude_cian_id=apartment.cian_id
+                    exclude_cian_id=apartment.cian_id,
+                    price_segment=apartment.price_segment
                 )
                 if benchmark and benchmark['count'] >= 2:
-                    comparison_type = 'global_metro_rooms'
+                    comparison_type = 'global_metro_rooms_segment'
         
-        # 5. Если по метро мало данных, берем общую статистику по количеству комнат среди НОВЫХ
+        # 5. Если по метро мало данных, берем общую статистику по количеству комнат + сегмент
         if not benchmark or benchmark['count'] < 2:
             benchmark = await ApartmentService.calculate_staging_average_price(
                 rooms=apartment.rooms,
-                exclude_cian_id=apartment.cian_id
+                exclude_cian_id=apartment.cian_id,
+                price_segment=apartment.price_segment
             )
             if benchmark and benchmark['count'] >= 2:
-                comparison_type = 'global_rooms'
+                comparison_type = 'global_rooms_segment'
             metro_station = None
         
-        # 6. Если и этого мало, берем вообще всю статистику НОВЫХ квартир
+        # 6. Если и этого мало, берем вообще всю статистику НОВЫХ квартир в этом сегменте
         if not benchmark or benchmark['count'] < 2:
             benchmark = await ApartmentService.calculate_staging_average_price(
-                exclude_cian_id=apartment.cian_id
+                exclude_cian_id=apartment.cian_id,
+                price_segment=apartment.price_segment
             )
             if benchmark and benchmark['count'] >= 1:
-                comparison_type = 'global_general'
+                comparison_type = 'global_general_segment'
             
         # Вычисляем отклонение от рынка
         price_deviation = None

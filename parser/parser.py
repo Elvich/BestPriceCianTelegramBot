@@ -1,8 +1,14 @@
+import sys
+import os
+
+# Add project root to sys.path
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 import requests
 from bs4 import BeautifulSoup
 import time
 from tqdm import tqdm
-from config import config
+from config.config import config
  
 class Parser:
     """
@@ -65,13 +71,24 @@ class Parser:
         """
         try:
             # Извлекаем основные данные объявления
-            link = card.find('a', class_='_93444fe79c--link--eoxce').get('href')
-            name = card.find('span', {'data-mark': 'OfferTitle'}).get_text(strip=True)
-            price_per_sqm = card.find('p', {'data-mark': 'PriceInfo'}).get_text(strip=True)
-            price = card.find('span', {'data-mark': 'MainPrice'}).get_text(strip=True)
+            # Ищем ссылку с data-name="TitleComponent" или просто первую ссылку
+            link_el = card.find('a', {'data-name': 'TitleComponent'})
+            if not link_el:
+                link_el = card.find('a') # Fallback
+                
+            link = link_el.get('href')
+            
+            name_el = card.find('span', {'data-mark': 'OfferTitle'})
+            name = name_el.get_text(strip=True) if name_el else "Без названия"
+            
+            price_per_sqm_el = card.find('p', {'data-mark': 'PriceInfo'})
+            price_per_sqm = price_per_sqm_el.get_text(strip=True) if price_per_sqm_el else ""
+            
+            price_el = card.find('span', {'data-mark': 'MainPrice'})
+            price = price_el.get_text(strip=True) if price_el else ""
             
             return [link, name, price, price_per_sqm]
-        except AttributeError as e:
+        except Exception as e:
             # Если структура страницы изменилась или элемент не найден
             print(f"Ошибка при парсинге карточки: {e}")
             return None
@@ -82,7 +99,12 @@ class Parser:
         html_content = self._fetch_page_content(current_url)
         
         soup = BeautifulSoup(html_content, 'lxml')
-        cards = soup.find_all('div', class_='_93444fe79c--card--ibP42')
+        # Обновленный селектор для карточек
+        cards = soup.find_all('article', {'data-name': 'CardComponent'})
+        
+        # Если не нашли по новому селектору, пробуем старый (на всякий случай)
+        if not cards:
+             cards = soup.find_all('div', class_='_93444fe79c--card--ibP42')
         
         page_items = []
         for card in cards:
@@ -99,10 +121,29 @@ class Parser:
 
         # Извлекаем дополнительные данные из карточки
         details = {}
-        details['address'] = soup.find('span', {'itemprop': 'name'}).get('content')
+        
+        # Извлекаем адрес
+        # Ищем контейнер Geo, так как на странице много элементов с itemprop="name" (например, в хлебных крошках)
+        geo_div = soup.find('div', {'data-name': 'Geo'})
+        if geo_div:
+            address_span = geo_div.find('span', {'itemprop': 'name'})
+            details['address'] = address_span.get('content') if address_span else None
+        else:
+            # Fallback: пробуем найти первый span с itemprop="name" и атрибутом content
+            address_span = soup.find('span', {'itemprop': 'name', 'content': True})
+            details['address'] = address_span.get('content') if address_span else None
         
         # Извлекаем информацию о станциях метро
         details['metro_stations'] = self._extract_metro_info(soup)
+        
+        # Извлекаем информацию об этажах
+        floor_info = self._extract_floor_info(soup)
+        if floor_info:
+            details['floor'] = floor_info.get('floor')
+            details['floors_total'] = floor_info.get('floors_total')
+        
+        # Извлекаем просмотры за сутки
+        details['views_per_day'] = self._extract_views(soup)
 
         return details
 
@@ -157,12 +198,7 @@ class Parser:
     def _is_walking_time(self, time_text):
         """
         Проверяет, является ли указанное время временем пешком.
-        
-        Args:
-            time_text (str): Текст времени ("8 мин пешком", "5 мин на транспорте", "10 мин")
-            
-        Returns:
-            bool: True если время пешком, False - если на транспорте/машине
+        Возвращает True, если текст содержит слова "пешком", но не содержит "транспорт" или "машин".
         """
         if not time_text:
             return False
@@ -193,6 +229,94 @@ class Parser:
             return True
             
         return False
+    
+    def _extract_floor_info(self, soup):
+        """
+        Извлекает информацию об этаже квартиры.
+        
+        Args:
+            soup: BeautifulSoup объект страницы
+            
+        Returns:
+            dict: {'floor': int, 'floors_total': int} или None
+        """
+        import re
+        
+        try:
+            # Ищем текст вида "5/21 этаж" или "5 из 21"
+            # Типичные селекторы для информации об этаже
+            floor_patterns = [
+                # Вариант 1: текст с "этаж"
+                (soup.find_all(string=re.compile(r'\d+/\d+\s*этаж', re.I)), r'(\d+)/(\d+)'),
+                # Вариант 2: текст "X из Y"
+                (soup.find_all(string=re.compile(r'\d+\s*из\s*\d+', re.I)), r'(\d+)\s*из\s*(\d+)'),
+            ]
+            
+            for elements, pattern in floor_patterns:
+                for element in elements:
+                    text = element.strip()
+                    match = re.search(pattern, text)
+                    if match:
+                        floor = int(match.group(1))
+                        floors_total = int(match.group(2))
+                        return {'floor': floor, 'floors_total': floors_total}
+            
+            # Если не нашли в тексте, ищем в атрибутах и структурированных данных
+            # Попытка найти через data-атрибуты или специальные классы
+            floor_containers = soup.find_all(['div', 'span'], class_=re.compile(r'floor', re.I))
+            for container in floor_containers:
+                text = container.get_text(strip=True)
+                match = re.search(r'(\d+)/(\d+)', text)
+                if match:
+                    floor = int(match.group(1))
+                    floors_total = int(match.group(2))
+                    return {'floor': floor, 'floors_total': floors_total}
+                    
+        except Exception as e:
+            print(f"Ошибка при извлечении информации об этаже: {e}")
+        
+        return None
+    
+    def _extract_views(self, soup):
+        """
+        Извлекает количество просмотров за сутки.
+        
+        Args:
+            soup: BeautifulSoup объект страницы
+            
+        Returns:
+            int: количество просмотров или None
+        """
+        import re
+        
+        try:
+            # Ищем текст вида "X просмотров за сутки" или "X просмотров сегодня"
+            view_patterns = [
+                r'(\d+)\s*за сегодня',
+                r'(\d+)\s*view',
+            ]
+            
+            # Ищем по всему тексту страницы
+            page_text = soup.get_text()
+            
+            for pattern in view_patterns:
+                matches = re.findall(pattern, page_text, re.I)
+                if matches:
+                    # Берем первое найденное число
+                    return int(matches[0])
+            
+            # Попытка найти через специальные классы или data-атрибуты
+            view_containers = soup.find_all(['div', 'span'], class_=re.compile(r'view|за сегодня', re.I))
+            for container in view_containers:
+                text = container.get_text(strip=True)
+                match = re.search(r'(\d+)', text)
+                if match:
+                    return int(match.group(1))
+                    
+        except Exception as e:
+            print(f"Ошибка при извлечении просмотров: {e}")
+        
+        return None
 
     def parse(self, url, start_page=None, end_page=None, write_to_file=False, deep_parse=False):
         """Основной метод парсинга"""

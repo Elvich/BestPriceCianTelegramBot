@@ -2,11 +2,11 @@ import asyncio
 import sys
 
 
-from config import config
+from config.config import config
 from parser.parser import Parser
 from parser.url import CIAN_URLS
 from DB.apartment_service import ApartmentService
-from DB.filter_service import FilterService, DEFAULT_FILTER_CONFIG, BARGAIN_HUNTER_CONFIG
+from DB.filter_service import FilterService, DEFAULT_FILTER_CONFIG
 
 async def parsing(url):
     """Прсинга данных с сайта"""
@@ -72,9 +72,22 @@ async def parsing(url):
                     price=price,
                     price_per_sqm=price_per_sqm,
                     address=details.get('address', ''),
+                    floor=details.get('floor'),
+                    floors_total=details.get('floors_total'),
+                    views_per_day=details.get('views_per_day'),
                     is_staging=True,
                     filter_status='pending'
                 )
+                
+                # Устанавливаем price_segment сразу при создании
+                if price:
+                    if price < 15_000_000:
+                        apartment.price_segment = 1
+                    elif 15_000_000 <= price < 20_000_000:
+                        apartment.price_segment = 2
+                    elif 20_000_000 <= price <= 30_000_000:
+                        apartment.price_segment = 3
+                    # > 30M будет отклонено фильтром, но пока ставим None
                 
                 # Добавляем данные о метро из глубокого парсинга
                 if 'metro_stations' in details and details['metro_stations']:
@@ -242,7 +255,7 @@ async def filtering():
         # Запускаем фильтрацию с рыночным фильтром
         print(f"\n🔍 Запуск фильтрации (минимальная скидка: {DEFAULT_FILTER_CONFIG.min_market_discount_percent}%)")
         filter_service = FilterService(DEFAULT_FILTER_CONFIG)
-        results = await filter_service.process_apartments(limit=10)
+        results = await filter_service.process_apartments(limit=1000)
         
         print(f"\n✅ Результаты фильтрации:")
         print(f"   Обработано: {results['processed']}")
@@ -264,40 +277,7 @@ async def filtering():
     except Exception as e:
         print(f"❌ Ошибка фильтрации: {e}")
 
-async def bargain_hunting():
-    """Самые выгодными предложениями"""
-    
-    print("\n" + "=" * 50)
-    print("Выгодными сделками")
-    print("=" * 50)
-    
-    try:
-        # Проверяем, есть ли данные в staging
-        staging_stats = await ApartmentService.get_statistics(staging_only=True)
-        
-        if staging_stats['pending_apartments'] == 0:
-            print("⚠️  В staging нет неообработанных квартир")
-            return
-        
-        
-        # Запускаем агрессивную фильтрацию
-        bargain_service = FilterService(BARGAIN_HUNTER_CONFIG)
-        results = await bargain_service.process_apartments(limit=20)
-        
-        print(f"\nСамые выкодные предложения:")
-        print(f"   Обработано: {results['processed']}")
-        print(f"   Найдено выгодных: {results['approved']}")
-        print(f"   Отклонено: {results['rejected']}")
-        
-        if results['approved'] > 0:
-            success_rate = (results['approved'] / results['processed']) * 100
-            print(f"   Успешность поиска: {success_rate:.1f}%")
-            print("   🎉 Найдены очень выгодные квартиры")
-        else:
-            print("   Не найдено")
-            
-    except Exception as e:
-        print(f"❌ Ошибка охоты за скидками: {e}")
+
 
 async def full_cycle(url):
     """Полный цикл: парсинг → staging → фильтрация → production"""
@@ -309,9 +289,6 @@ async def full_cycle(url):
     
     # 2. Обычная фильтрация
     await filtering()
-    
-    # 3. Охота за скидками
-    await bargain_hunting()
 
 
 async def main():

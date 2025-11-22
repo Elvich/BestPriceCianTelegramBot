@@ -9,7 +9,7 @@ from datetime import datetime
 # Добавляем путь к родительской директории для импорта config
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from Bot.router import router
-from config import config
+from config.config import config
 from Bot.error_handlers import check_telegram_connection, NetworkMonitor
 from Bot.notification_sender import NotificationSender
 
