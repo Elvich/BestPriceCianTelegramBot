@@ -136,6 +136,12 @@ async def parsing(url):
                         existing.price_per_sqm = apartment.price_per_sqm
                         existing.title = apartment.title
                         existing.address = apartment.address
+                        
+                        # Сохраняем максимальное количество просмотров за все время
+                        current_views = existing.views_per_day or 0
+                        new_views = apartment.views_per_day or 0
+                        existing.views_per_day = max(current_views, new_views)
+                        
                         existing.last_updated = datetime.utcnow()
                         
                         # Важно: добавляем source_url

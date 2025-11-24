@@ -5,11 +5,10 @@ main_menu = InlineKeyboardMarkup(
     inline_keyboard=[
         [
             InlineKeyboardButton(text="🏠 Просмотр квартир", callback_data="browse"),
-            InlineKeyboardButton(text="🆕 Новые объявления", callback_data="recent")
         ],
         [
             InlineKeyboardButton(text="❤️ Мои лайки", callback_data="my_likes"),
-            InlineKeyboardButton(text="📄 Экспорт в Excel", callback_data="export_menu")
+            InlineKeyboardButton(text="🆕 Новые объявления", callback_data="recent")
         ],
         [
     
@@ -24,6 +23,17 @@ export_menu = InlineKeyboardMarkup(
         [
             InlineKeyboardButton(text="🏠 Все", callback_data="export_browse"),
             InlineKeyboardButton(text="❤️ Мои лайки", callback_data="export_liked")
+        ],
+        [InlineKeyboardButton(text="🏠 Главное меню", callback_data="back_to_menu")]
+    ]
+)
+
+# Меню выбора режима просмотра
+browse_menu = InlineKeyboardMarkup(
+    inline_keyboard=[
+        [InlineKeyboardButton(text="🏠 Все квартиры", callback_data="browse_all")],
+        [InlineKeyboardButton(text=">= 100 просмотров", callback_data="browse_views_100"),
+        InlineKeyboardButton(text=">= 200 просмотров", callback_data="browse_views_200")
         ],
         [InlineKeyboardButton(text="🏠 Главное меню", callback_data="back_to_menu")]
     ]
@@ -173,11 +183,19 @@ def create_apartment_browser_keyboard(current_index: int, total_count: int, apar
     # Вторая строчка: Возврат к списку и главное меню
     second_row = []
     
-    # Кнопка возврата к списку (если не в основном просмотре)
-    second_row.append(InlineKeyboardButton(
-        text="🏠 Главное меню", 
-        callback_data="back_to_menu"
-    ))
+    # Кнопка возврата (зависит от контекста)
+    if list_context in ["all"] or list_context.startswith("views_"):
+        # Если пришли из меню просмотра, возвращаемся в него
+        second_row.append(InlineKeyboardButton(
+            text="🔙 Вернуться", 
+            callback_data="back_to_browse_menu"
+        ))
+    else:
+        # Иначе возвращаемся в главное меню
+        second_row.append(InlineKeyboardButton(
+            text="🏠 Главное меню", 
+            callback_data="back_to_menu"
+        ))
     
     keyboard.append(second_row)
     
