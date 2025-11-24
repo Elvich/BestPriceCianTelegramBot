@@ -486,38 +486,13 @@ class ApartmentService:
                 comparison_type = 'source_general_segment'
                 metro_station = None
         
-        # 4. Fallback: если source_url не дает результатов, используем глобальную статистику + сегмент
-        if not benchmark or benchmark['count'] < 2:
-            if apartment.metro_stations:
-                metro_station = apartment.metro_stations[0].station_name
-                benchmark = await ApartmentService.calculate_staging_average_price(
-                    rooms=apartment.rooms,
-                    metro_station=metro_station,
-                    exclude_cian_id=apartment.cian_id,
-                    price_segment=apartment.price_segment
-                )
-                if benchmark and benchmark['count'] >= 2:
-                    comparison_type = 'global_metro_rooms_segment'
+        # 4. Fallback: если source_url не дает результатов, считаем, что бенчмарка нет.
+        # Мы намеренно убрали глобальные сравнения (шаги 4-6), чтобы избежать сравнения с нерелевантными квартирами.
+        # Если в рамках одного поиска (source_url) недостаточно данных для сравнения,
+        # то мы не можем достоверно сказать, выгодно это предложение или нет.
         
-        # 5. Если по метро мало данных, берем общую статистику по количеству комнат + сегмент
-        if not benchmark or benchmark['count'] < 2:
-            benchmark = await ApartmentService.calculate_staging_average_price(
-                rooms=apartment.rooms,
-                exclude_cian_id=apartment.cian_id,
-                price_segment=apartment.price_segment
-            )
-            if benchmark and benchmark['count'] >= 2:
-                comparison_type = 'global_rooms_segment'
-            metro_station = None
-        
-        # 6. Если и этого мало, берем вообще всю статистику НОВЫХ квартир в этом сегменте
-        if not benchmark or benchmark['count'] < 2:
-            benchmark = await ApartmentService.calculate_staging_average_price(
-                exclude_cian_id=apartment.cian_id,
-                price_segment=apartment.price_segment
-            )
-            if benchmark and benchmark['count'] >= 1:
-                comparison_type = 'global_general_segment'
+        if comparison_type == 'unknown':
+            benchmark = None
             
         # Вычисляем отклонение от рынка
         price_deviation = None
