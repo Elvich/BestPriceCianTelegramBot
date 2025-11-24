@@ -290,6 +290,21 @@ class Parser:
         import re
         
         try:
+            # 1. Приоритетный поиск: кнопка статистики
+            # <button class="..." data-name="OfferStats">
+            #   ...
+            #   1796 просмотров, 17 за сегодня, 1213 уникальных
+            # </button>
+            stats_button = soup.find('button', {'data-name': 'OfferStats'})
+            if stats_button:
+                text = stats_button.get_text(strip=True)
+                # Ищем "X за сегодня"
+                # Поддерживает форматы: "17 за сегодня", "1796 просмотров, 17 за сегодня"
+                match = re.search(r'(\d+)\s*за сегодня', text)
+                if match:
+                    return int(match.group(1))
+            
+            # 2. Fallback: поиск по всему тексту (старая логика)
             # Ищем текст вида "X просмотров за сутки" или "X просмотров сегодня"
             view_patterns = [
                 r'(\d+)\s*за сегодня',
@@ -305,7 +320,7 @@ class Parser:
                     # Берем первое найденное число
                     return int(matches[0])
             
-            # Попытка найти через специальные классы или data-атрибуты
+            # 3. Fallback: поиск через классы
             view_containers = soup.find_all(['div', 'span'], class_=re.compile(r'view|за сегодня', re.I))
             for container in view_containers:
                 text = container.get_text(strip=True)

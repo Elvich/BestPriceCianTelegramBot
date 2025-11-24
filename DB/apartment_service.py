@@ -9,7 +9,7 @@ from sqlalchemy import select, and_, or_, desc
 from sqlalchemy.orm import selectinload
 from datetime import datetime
 
-from .Models import async_session, Apartment, MetroStation, PriceHistory, User, FilterLog
+from .Models import async_session, Apartment, MetroStation, PriceHistory, User, FilterLog, UserApartmentReaction
 
 
 class ApartmentService:
@@ -138,70 +138,53 @@ class ApartmentService:
         return stats
     
     @staticmethod
-    async def get_apartments(
-        limit: int = 100,
-        min_price: Optional[int] = None,
-        max_price: Optional[int] = None,
-        metro_stations: Optional[List[str]] = None,
-        only_active: bool = True,
-        only_production: bool = False,
-        exclude_disliked_for_user: Optional[int] = None
-    ) -> List[Apartment]:
+    async def get_apartments(limit: int = 10, offset: int = 0, only_active: bool = True, 
+                           only_production: bool = False, exclude_disliked_for_user: Optional[int] = None,
+                           min_views: Optional[int] = None) -> List[Apartment]:
         """
-        Получает список объявлений с фильтрацией
+        Получает список квартир с возможностью фильтрации
         
         Args:
-            limit: Максимальное количество результатов
-            min_price: Минимальная цена
-            max_price: Максимальная цена
-            metro_stations: Список предпочитаемых станций метро
-            only_active: Показывать только активные объявления
-            only_production: Показывать только квартиры из production (прошедшие фильтрацию)
-            exclude_disliked_for_user: ID пользователя для исключения дизлайкнутых квартир
-            
-        Returns:
-            Список объявлений
+            limit: Максимальное количество записей
+            offset: Смещение
+            only_active: Только активные объявления
+            only_production: Только из production (прошедшие фильтры)
+            exclude_disliked_for_user: ID пользователя, чьи дизлайки нужно исключить
+            min_views: Минимальное количество просмотров за сутки
         """
         async with async_session() as session:
-            query = select(Apartment).options(
-                selectinload(Apartment.metro_stations),
-                selectinload(Apartment.price_history)
-            )
-            
-            # Применяем фильтры
             conditions = []
             
             if only_active:
                 conditions.append(Apartment.is_active == True)
-            
+                
             if only_production:
                 conditions.append(Apartment.is_staging == False)
-            
-            if min_price:
-                conditions.append(Apartment.price >= min_price)
-            
-            if max_price:
-                conditions.append(Apartment.price <= max_price)
-            
-            if metro_stations:
-                # Ищем объявления рядом с указанными станциями метро
-                metro_condition = select(MetroStation.apartment_id).where(
-                    MetroStation.station_name.in_(metro_stations)
-                )
-                conditions.append(Apartment.id.in_(metro_condition))
-            
+                
+            if min_views is not None:
+                conditions.append(Apartment.views_per_day >= min_views)
+                
             if exclude_disliked_for_user:
-                # Исключаем дизлайкнутые квартиры
-                from .reaction_service import ReactionService
-                disliked_ids = await ReactionService.get_disliked_apartment_ids(exclude_disliked_for_user)
-                if disliked_ids:
-                    conditions.append(~Apartment.id.in_(disliked_ids))
+                # Подзапрос для получения ID дизлайкнутых квартир
+                disliked_subquery = select(UserApartmentReaction.apartment_id).where(
+                    and_(
+                        UserApartmentReaction.telegram_id == exclude_disliked_for_user,
+                        UserApartmentReaction.reaction == 'dislike'
+                    )
+                )
+                conditions.append(Apartment.id.not_in(disliked_subquery))
+            
+            query = select(Apartment).options(
+                selectinload(Apartment.metro_stations)
+            )
             
             if conditions:
                 query = query.where(and_(*conditions))
+                
+            # Сортировка: сначала новые
+            query = query.order_by(Apartment.first_seen.desc())
             
-            # Сортируем по цене (сначала самые дешевые)
-            query = query.order_by(Apartment.price.asc()).limit(limit)
+            query = query.limit(limit).offset(offset)
             
             result = await session.execute(query)
             return result.scalars().all()

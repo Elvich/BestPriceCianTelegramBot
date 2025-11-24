@@ -238,18 +238,51 @@ async def back_to_list_handler(callback: CallbackQuery):
             await my_dislikes_handler(callback)
         elif list_context == "new":
             await recent_callback_handler(callback)
+        elif list_context.startswith("views_"):
+            await browse_apartments_list_helper(callback, index=0, list_context=list_context)
             
     except Exception as e:
         logger.error(f"Error in back_to_list_handler: {e}")
         await safe_edit_message(callback, "❌ Ошибка при возврате к списку", reply_markup=kb.back_to_menu)
 
+@router.callback_query(F.data == "browse_all")
+@handle_network_errors
+async def browse_all_handler(callback: CallbackQuery):
+    """Просмотр всех квартир"""
+    await browse_apartments_helper(callback, index=0)
+    await callback.answer()
+
+@router.callback_query(F.data == "back_to_browse_menu")
+@handle_network_errors
+async def back_to_browse_menu_handler(callback: CallbackQuery):
+    """Возврат в меню просмотра"""
+    await safe_edit_message(
+        callback, 
+        "🔍 **Выберите режим просмотра:**", 
+        reply_markup=kb.browse_menu,
+        parse_mode="Markdown"
+    )
+
+@router.callback_query(F.data.in_({"browse_views_100", "browse_views_200"}))
+@handle_network_errors
+async def browse_views_handler(callback: CallbackQuery):
+    """Просмотр популярных квартир"""
+    min_views = 100 if "100" in callback.data else 200
+    context = f"views_{min_views}"
+    await browse_apartments_list_helper(callback, index=0, list_context=context)
+    await callback.answer()
+
 # Обработчики кнопок главного меню
 @router.callback_query(F.data == "browse")
 @handle_network_errors
 async def browse_apartments_handler(callback: CallbackQuery):
-    """Просмотр квартир в режиме плеера"""
-    await browse_apartments_helper(callback, index=0)
-    await callback.answer()
+    """Меню просмотра квартир"""
+    await safe_edit_message(
+        callback, 
+        "🔍 **Выберите режим просмотра:**", 
+        reply_markup=kb.browse_menu,
+        parse_mode="Markdown"
+    )
 
 @router.callback_query(F.data == "stats") 
 @handle_network_errors
@@ -392,6 +425,24 @@ async def browse_apartments_list_helper(callback: CallbackQuery, index: int, lis
         elif list_context == "new":
             apartments = await NotificationService.get_new_apartments_for_user(user_id, limit=50)
             title_prefix = "🆕 Новые квартиры"
+        elif list_context == "views_100":
+            apartments = await ApartmentService.get_apartments(
+                limit=50,
+                only_active=True,
+                only_production=True,
+                exclude_disliked_for_user=user_id,
+                min_views=100
+            )
+            title_prefix = ">100 просмотров"
+        elif list_context == "views_200":
+            apartments = await ApartmentService.get_apartments(
+                limit=50,
+                only_active=True,
+                only_production=True,
+                exclude_disliked_for_user=user_id,
+                min_views=200
+            )
+            title_prefix = ">200 просмотров"
         else:
             apartments = []
             title_prefix = "📋 Квартиры"
@@ -401,7 +452,9 @@ async def browse_apartments_list_helper(callback: CallbackQuery, index: int, lis
                 "all": "❌ Квартиры не найдены. Возможно, база данных пуста.",
                 "liked": "❤️ У вас пока нет лайкнутых квартир.\nИспользуйте кнопку ❤️ при просмотре квартир.",
                 "disliked": "👎 У вас пока нет скрытых квартир.\nИспользуйте кнопку 👎 при просмотре квартир.",
-                "new": "🆕 Новых квартир для вас пока нет."
+                "new": "🆕 Новых квартир для вас пока нет.",
+                "views_100": "Квартир с >100 просмотров пока нет.",
+                "views_200": "Квартир с >200 просмотров пока нет."
             }
             
             await safe_edit_message(
