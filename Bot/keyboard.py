@@ -187,7 +187,7 @@ def create_apartment_browser_keyboard(current_index: int, total_count: int, apar
     if list_context in ["all"] or list_context.startswith("views_"):
         # Если пришли из меню просмотра, возвращаемся в него
         second_row.append(InlineKeyboardButton(
-            text="🔙 Назад", 
+            text="🔙 Вернуться", 
             callback_data="back_to_browse_menu"
         ))
     else:
