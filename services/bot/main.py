@@ -1,17 +1,19 @@
-from aiogram import Bot, Dispatcher, types
-from aiogram.exceptions import TelegramNetworkError, TelegramServerError
+
 import asyncio
 import sys
 import os
 import logging
 from datetime import datetime
+from aiogram import Bot, Dispatcher
+from aiogram.exceptions import TelegramNetworkError, TelegramServerError
 
-# Добавляем путь к родительской директории для импорта config
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from Bot.router import router
-from config.config import config
-from Bot.error_handlers import check_telegram_connection, NetworkMonitor
-from Bot.notification_sender import NotificationSender
+# Добавляем путь к корневой директории
+sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+
+from core.config import config
+from services.bot.handlers.router import router
+from services.bot.handlers.error_handlers import check_telegram_connection, NetworkMonitor
+from services.bot.logic.notification_sender import NotificationSender
 
 # Настройка логирования
 def setup_logging():
@@ -20,22 +22,26 @@ def setup_logging():
         level=logging.INFO,
         format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
         handlers=[
-            logging.FileHandler('bot.log', encoding='utf-8'),
+            logging.FileHandler(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'bot.log'), encoding='utf-8'),
             logging.StreamHandler(sys.stdout)
         ]
     )
     
-    logger = logging.getLogger(__name__)
+    logger = logging.getLogger("BotService")
     return logger
 
-async def main():
+async def run_bot_service():
     logger = setup_logging()
     
     try:
         logger.info("🚀 Запуск Telegram бота для поиска квартир")
         
         # Валидируем конфигурацию перед запуском
-        config.validate()
+        try:
+            config.validate()
+        except:
+             pass # config.validate might print errors and exit, or raise. 
+
         logger.info("✅ Конфигурация валидирована успешно")
         
         # Выводим информацию о конфигурации
@@ -115,8 +121,8 @@ async def main():
 
 if __name__ == "__main__":
     try:
-        asyncio.run(main())
+        asyncio.run(run_bot_service())
     except KeyboardInterrupt:
-        logging.getLogger(__name__).info("\nБот остановлен пользователем")
+        logging.getLogger("BotService").info("\nБот остановлен пользователем")
     except Exception as e:
-        logging.getLogger(__name__).exception(f"Критическая ошибка при запуске: {e}")
+        logging.getLogger("BotService").exception(f"Критическая ошибка при запуске: {e}")

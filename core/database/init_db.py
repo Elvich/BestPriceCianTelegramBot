@@ -4,14 +4,8 @@
 """
 
 import asyncio
-import sys
-import os
-
-# Добавляем путь к корневой директории
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
-from DB.Models import Base, engine
-from config.config import config
+from core.database.models import Base, engine
+from core.config import config
 
 async def create_tables():
     """Создает все таблицы в базе данных"""

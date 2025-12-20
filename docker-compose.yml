@@ -1,0 +1,67 @@
+services:
+  # --- База данных ---
+  db:
+    image: postgres:15-alpine
+    container_name: cian_bot_db
+    restart: always
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-cian_bot}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U postgres" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # --- Сервис Парсера ---
+  parser:
+    build:
+      context: .
+      dockerfile: services/parser/Dockerfile
+    container_name: cian_bot_parser
+    restart: always
+    depends_on:
+      db:
+        condition: service_healthy
+    env_file:
+      - .env
+    volumes:
+      - ./logs/parser:/app/logs
+      - ./migrations:/app/migrations
+      - ./alembic.ini:/app/alembic.ini
+
+  # --- Сервис Анализатора ---
+  analyzer:
+    build:
+      context: .
+      dockerfile: services/analyzer/Dockerfile
+    container_name: cian_bot_analyzer
+    restart: always
+    depends_on:
+      db:
+        condition: service_healthy
+    env_file:
+      - .env
+    volumes:
+      - ./logs/analyzer:/app/logs
+
+  # --- Сервис Бота ---
+  bot:
+    build:
+      context: .
+      dockerfile: services/bot/Dockerfile
+    container_name: cian_bot_interface
+    restart: always
+    depends_on:
+      db:
+        condition: service_healthy
+    env_file:
+      - .env
+    volumes:
+      - ./logs/bot:/app/services/bot/logs
+
+volumes:
+  postgres_data:

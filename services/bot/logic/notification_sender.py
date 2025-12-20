@@ -8,8 +8,8 @@ import logging
 from aiogram import Bot
 from aiogram.exceptions import TelegramBadRequest, TelegramForbiddenError, TelegramNetworkError
 
-from DB.notification_service import NotificationService
-from DB.Models import UserNotification
+from core.database.notification_service import NotificationService
+from core.database.models import UserNotification
 
 logger = logging.getLogger(__name__)
 

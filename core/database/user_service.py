@@ -8,7 +8,7 @@ from datetime import datetime
 from sqlalchemy import select, update
 from sqlalchemy.dialects.sqlite import insert
 
-from .Models import async_session, User
+from .models import async_session, User
 
 logger = logging.getLogger(__name__)
 

@@ -2,12 +2,7 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 from sqlalchemy.ext.asyncio import AsyncAttrs, async_sessionmaker, create_async_engine
 from sqlalchemy import String, Integer, BigInteger, Text, DateTime, Float, Boolean, ForeignKey, JSON, Index
 from datetime import datetime
-import sys
-import os
-
-# Добавляем путь к родительской директории для импорта config
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from config.config import config
+from core.config import config
 
 engine = create_async_engine(config.DATABASE_URL)
 async_session = async_sessionmaker(engine)

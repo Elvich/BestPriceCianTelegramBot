@@ -7,9 +7,10 @@ import os
 # Добавляем путь к родительской директории
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from DB.filter_service import FilterService, FilterConfig, DEFAULT_FILTER_CONFIG, PREMIUM_FILTER_CONFIG, BARGAIN_HUNTER_CONFIG, BOOTSTRAP_CONFIG
-from DB.apartment_service import ApartmentService
-from DB.reaction_service import ReactionService
+from core.database.filter_service import FilterService, FilterConfig, DEFAULT_FILTER_CONFIG, PREMIUM_FILTER_CONFIG, BARGAIN_HUNTER_CONFIG, BOOTSTRAP_CONFIG
+from core.database.apartment_service import ApartmentService
+from core.database.models import Apartment, PriceHistory
+from core.database.reaction_service import ReactionService
 
 async def run_filter(config: FilterConfig, limit: int = 50, verbose: bool = False):
     """Запускает процесс фильтрации"""

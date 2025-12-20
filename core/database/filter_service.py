@@ -9,7 +9,7 @@ from dataclasses import dataclass
 from datetime import datetime
 
 from .apartment_service import ApartmentService
-from .Models import Apartment
+from .models import Apartment
 from .notification_service import NotificationService
 
 
@@ -457,10 +457,7 @@ class FilterService:
 # Функция для создания конфигурации фильтра из переменных окружения
 def get_default_filter_config() -> FilterConfig:
     """Создает конфигурацию DEFAULT фильтра из переменных окружения"""
-    import sys
-    import os
-    sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-    from config.config import config
+    from core.config import config
     
     return FilterConfig(
         # Рыночные фильтры - основа системы

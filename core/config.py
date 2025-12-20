@@ -9,8 +9,8 @@ from typing import Optional
 from pathlib import Path
 from dotenv import load_dotenv
 
-# Определяем путь к .env файлу в той же папке, что и Config.py
-config_dir = Path(__file__).parent
+# Определяем путь к .env файлу в корне проекта (на уровень выше core)
+config_dir = Path(__file__).parent.parent
 env_file = config_dir / '.env'
 
 # Загружаем переменные из .env файла
@@ -22,12 +22,37 @@ class Config:
     
     # Telegram Bot Configuration
     BOT_TOKEN: str = os.getenv('BOT_TOKEN', '')
+
+    # Cian URLs
+    _CIAN_URLS_STR = os.getenv('CIAN_URLS', '')
+    CIAN_URLS: list[str] = [url.strip() for url in _CIAN_URLS_STR.split(',') if url.strip()]
+
     
     # Database Configuration
-    DATABASE_URL: str = os.getenv('DATABASE_URL', 'sqlite+aiosqlite:///dp.sqlite')
+    # DATABASE_URL: str = os.getenv('DATABASE_URL', 'sqlite+aiosqlite:///dp.sqlite') # Original line
+    
+    # Database
+    _DATABASE_URL_RAW = os.getenv("DATABASE_URL")
+    if not _DATABASE_URL_RAW:
+        pg_user = os.getenv("POSTGRES_USER", "postgres")
+        pg_password = os.getenv("POSTGRES_PASSWORD", "postgres")
+        pg_host = os.getenv("POSTGRES_HOST", "db") # 'db' - имя сервиса в docker-compose
+        pg_port = os.getenv("POSTGRES_PORT", "5432")
+        pg_db = os.getenv("POSTGRES_DB", "cian_bot")
+        
+        # Если есть хоть один спец-параметр, формируем URL для PG
+        if os.getenv("POSTGRES_USER") or os.getenv("POSTGRES_DB"):
+             DATABASE_URL: str = f"postgresql+asyncpg://{pg_user}:{pg_password}@{pg_host}:{pg_port}/{pg_db}"
+        else:
+             # Fallback to SQLite default if nothing configured
+             DATABASE_URL: str = "sqlite+aiosqlite:///cian_bot.db"
+    else:
+        DATABASE_URL: str = _DATABASE_URL_RAW
     
     # Parser Configuration
     PARSER_DELAY: int = int(os.getenv('PARSER_DELAY', '3'))
+    MIN_PARSER_DELAY: float = float(os.getenv('MIN_PARSER_DELAY', '5.0'))
+    MAX_PARSER_DELAY: float = float(os.getenv('MAX_PARSER_DELAY', '15.0'))
     PARSER_DEEP_DELAY: int = int(os.getenv('PARSER_DEEP_DELAY', '2'))
     PARSER_DEFAULT_START_PAGE: int = int(os.getenv('PARSER_DEFAULT_START_PAGE', '1'))
     PARSER_DEFAULT_END_PAGE: int = int(os.getenv('PARSER_DEFAULT_END_PAGE', '17'))

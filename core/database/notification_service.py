@@ -9,7 +9,7 @@ from typing import List, Dict, Optional
 from sqlalchemy import select, and_, func
 from sqlalchemy.orm import selectinload
 
-from .Models import async_session, Apartment, UserNotification, User, UserApartmentRead
+from .models import async_session, Apartment, UserNotification, User, UserApartmentRead
 from .apartment_service import ApartmentService
 
 logger = logging.getLogger(__name__)

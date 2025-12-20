@@ -11,8 +11,8 @@ from datetime import datetime
 # Добавляем путь к родительской директории
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from DB.notification_service import NotificationService
-from DB.Models import async_session, User, UserNotification
+from core.database.notification_service import NotificationService
+from core.database.models import async_session, User, UserNotification
 from sqlalchemy import select, func
 
 

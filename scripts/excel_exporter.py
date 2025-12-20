@@ -15,9 +15,9 @@ from openpyxl.utils.dataframe import dataframe_to_rows
 # Добавляем путь к родительской директории
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from DB.apartment_service import ApartmentService
-from DB.reaction_service import ReactionService
-from DB.Models import Apartment
+from core.database.apartment_service import ApartmentService
+from core.database.reaction_service import ReactionService
+from core.database.models import Apartment, User, async_session
 
 
 class ExcelExporter:

@@ -8,11 +8,8 @@ import os
 # Добавляем путь к проекту
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from config.metro_config import (
-    get_blocked_stations, 
-    get_preferred_stations,
-    get_station_priority
-)
+from core.database.models import async_session, MetroStation
+from config.metro_config import get_blocked_stations, get_preferred_stations, get_station_priority
 
 def show_current_config():
     """Показывает текущую конфигурацию станций"""

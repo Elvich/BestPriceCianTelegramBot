@@ -5,21 +5,22 @@ from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import StatesGroup
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 from aiogram.exceptions import TelegramNetworkError, TelegramBadRequest
-import Bot.keyboard as kb
+import services.bot.keyboards as kb
 import sys
 import os
 import logging
 from functools import wraps
-from Bot.error_handlers import network_retry, RetryConfig, NetworkMonitor
+from services.bot.handlers.error_handlers import network_retry, RetryConfig, NetworkMonitor
 
-# Добавляем путь к родительской директории
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from DB.apartment_service import ApartmentService
-from DB.notification_service import NotificationService
-from DB.user_service import UserService
-from DB.reaction_service import ReactionService
+# Добавляем путь к корневой директории
+sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))))
+
+from core.database.apartment_service import ApartmentService
+from core.database.notification_service import NotificationService
+from core.database.user_service import UserService
+from core.database.reaction_service import ReactionService
 from scripts.excel_exporter import ExcelExporter
-from Bot.notification_sender import NotificationSender
+from services.bot.logic.notification_sender import NotificationSender
 
 # Настройка логирования
 logging.basicConfig(level=logging.INFO)

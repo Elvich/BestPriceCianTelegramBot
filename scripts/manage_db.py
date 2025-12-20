@@ -9,8 +9,10 @@ import argparse
 from typing import Optional, List
 from datetime import datetime, timedelta
 
+from core.database.init_db import init_db
+from core.database.models import Base, engine, async_session, Apartment, User, MetroStation
+from core.config import config
 from DB.apartment_service import ApartmentService
-from DB.Models import async_session, Apartment, MetroStation
 from scripts.excel_exporter import ExcelExporter
 
 async def show_statistics():

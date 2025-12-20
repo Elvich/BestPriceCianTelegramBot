@@ -9,7 +9,7 @@ from sqlalchemy import select, and_, or_, desc
 from sqlalchemy.orm import selectinload
 from datetime import datetime
 
-from .Models import async_session, Apartment, MetroStation, PriceHistory, User, FilterLog, UserApartmentReaction
+from .models import async_session, Apartment, MetroStation, PriceHistory, User, FilterLog, UserApartmentReaction
 
 
 class ApartmentService:
