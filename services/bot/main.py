@@ -11,7 +11,7 @@ from aiogram.exceptions import TelegramNetworkError, TelegramServerError
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 from core.config import config
-from services.bot.handlers.router import router
+from services.bot.handlers import router
 from services.bot.handlers.error_handlers import check_telegram_connection, NetworkMonitor
 from services.bot.logic.notification_sender import NotificationSender
 
