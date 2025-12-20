@@ -1,111 +1,91 @@
 """
-Скрипт для создания таблиц в базе данных.
-Запускайте этот скрипт перед первым использованием проекта.
+Скрипт для управления схемой базы данных через Alembic.
+Запускайте этот скрипт для инициализации, обновления или сброса базы данных.
 """
 
-import asyncio
-from core.database.models import Base, engine
-from core.config import config
+import sys
+import os
+from alembic.config import Config
+from alembic import command
+from core.config import config as app_config
 
-async def create_tables():
-    """Создает все таблицы в базе данных"""
+def get_alembic_config():
+    """Создает объект конфигурации Alembic"""
+    # Предполагаем, что alembic.ini находится в корне проекта
+    alembic_cfg = Config("alembic.ini")
+    # Можно переопределить URL, если нужно, но alembic.ini обычно настроен на использование env.py 
+    # который берет URL из core.config.
+    return alembic_cfg
+
+def create_tables():
+    """Применяет миграции для создания таблиц"""
     try:
-        print("🔧 Инициализация базы данных...")
-        print(f"   Database URL: {config.DATABASE_URL}")
+        print("🔧 Инициализация базы данных через Alembic...")
+        alembic_cfg = get_alembic_config()
         
-        # Создаем все таблицы
-        async with engine.begin() as conn:
-            await conn.run_sync(Base.metadata.create_all)
+        # Обновляем до последней версии (head)
+        command.upgrade(alembic_cfg, "head")
         
-        print("✅ Таблицы успешно созданы!")
-        print("\nСозданные таблицы:")
-        print("   - apartments (объявления: staging + production)")
-        print("   - metro_stations (станции метро)")
-        print("   - price_history (история изменения цен)")
-        print("   - filter_logs (логи фильтрации)")
-        print("   - users (пользователи бота)")
-        print("   - user_notifications (уведомления о новых квартирах)")
-        print("   - user_apartment_reads (отметки о просмотре)")
-        print("   - user_apartment_reactions (лайки/дизлайки)")
-        print("   - expenses (устаревшая таблица)")
-        print("\n💡 Теперь одна БД содержит и staging, и production данные")
-        print("   Используйте поле is_staging для разделения")
-        print("📱 Добавлена система уведомлений о новых квартирах")
-        print("❤️ Добавлена система лайков и дизлайков квартир")
-        print("   Дизлайкнутые квартиры исключаются из поиска")
+        print("✅ Миграции успешно применены!")
+        print("   База данных обновлена до актуальной версии.")
         
     except Exception as e:
-        print(f"❌ Ошибка при создании таблиц: {e}")
+        print(f"❌ Ошибка при применении миграций: {e}")
         sys.exit(1)
-    finally:
-        await engine.dispose()
 
-async def drop_tables():
-    """Удаляет все таблицы (осторожно!)"""
+def drop_tables():
+    """Откатывает все миграции (удаляет таблицы)"""
     try:
-        print("⚠️  ВНИМАНИЕ: Удаление всех таблиц...")
+        print("⚠️  ВНИМАНИЕ: Удаление всех таблиц (откат миграций)...")
         response = input("Вы уверены? Введите 'yes' для подтверждения: ")
         
         if response.lower() != 'yes':
             print("Операция отменена.")
             return
         
-        async with engine.begin() as conn:
-            await conn.run_sync(Base.metadata.drop_all)
+        alembic_cfg = get_alembic_config()
         
-        print("✅ Таблицы удалены!")
+        # Откатываем до начала (base)
+        command.downgrade(alembic_cfg, "base")
+        
+        print("✅ Миграции откатаны. Таблицы удалены.")
         
     except Exception as e:
-        print(f"❌ Ошибка при удалении таблиц: {e}")
+        print(f"❌ Ошибка при откате миграций: {e}")
         sys.exit(1)
-    finally:
-        await engine.dispose()
 
-async def recreate_tables():
-    """Пересоздает все таблицы с нуля"""
+def recreate_tables():
+    """Пересоздает базу данных (Drop + Upgrade)"""
     try:
         print("🔄 ПЕРЕСОЗДАНИЕ БАЗЫ ДАННЫХ")
         print("=" * 50)
         
-        print("🗑️  Удаляем старые таблицы...")
-        async with engine.begin() as conn:
-            await conn.run_sync(Base.metadata.drop_all)
+        print("🗑️  Откатываем миграции...")
+        alembic_cfg = get_alembic_config()
+        command.downgrade(alembic_cfg, "base")
         print("✅ Старые таблицы удалены")
         
-        print("\n🔧 Создаем новые таблицы с системой уведомлений...")
-        async with engine.begin() as conn:
-            await conn.run_sync(Base.metadata.create_all)
+        print("\n🔧 Применяем миграции заново...")
+        command.upgrade(alembic_cfg, "head")
         
         print("✅ Новые таблицы созданы!")
-        print("\n📋 Созданные таблицы:")
-        print("   - apartments (объявления с полями уведомлений)")
-        print("   - metro_stations (станции метро)")
-        print("   - price_history (история изменения цен)")
-        print("   - filter_logs (логи фильтрации)")
-        print("   - users (пользователи бота)")
-        print("   - user_notifications (📱 уведомления)")
-        print("   - user_apartment_reads (👁️ отметки просмотра)")
-        print("   - user_apartment_reactions (лайки/дизлайки)")
-        
-        print("\n🎉 База данных готова к работе с системой уведомлений и реакций!")
+        print("\n🎉 База данных готова к работе!")
         
     except Exception as e:
         print(f"❌ Ошибка при пересоздании таблиц: {e}")
         sys.exit(1)
-    finally:
-        await engine.dispose()
 
 if __name__ == "__main__":
     if len(sys.argv) > 1:
-        command = sys.argv[1].lower()
-        if command == "drop":
-            asyncio.run(drop_tables())
-        elif command == "recreate":
-            asyncio.run(recreate_tables())
+        cmd = sys.argv[1].lower()
+        if cmd == "drop":
+            drop_tables()
+        elif cmd == "recreate":
+            recreate_tables()
         else:
             print("Доступные команды:")
-            print("  python init_db.py          - создать таблицы")
-            print("  python init_db.py drop     - удалить таблицы")
-            print("  python init_db.py recreate - пересоздать все таблицы")
+            print("  python init_db.py          - применить миграции (создать таблицы)")
+            print("  python init_db.py drop     - откатить все миграции")
+            print("  python init_db.py recreate - пересоздать все (drop + upgrade)")
     else:
-        asyncio.run(create_tables())
+        create_tables()
