@@ -231,7 +231,8 @@ PRODUCT_FEATURES.md
 
 # Generated Excel files
 *.xlsx
-test_*.py
+# test_*.py - moved to specific exclusions or unignored for tests/
+!tests/
 demo.py
 TestDB.py
 
@@ -261,6 +262,4 @@ DB/StagingModels.py
 DB/StagingService.py
 DB/init_staging_db.py
 
-# Temporary and test files
-temp_*
-test_*
+# Selective test file ignores removed to allow testing suite

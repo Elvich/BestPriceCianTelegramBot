@@ -1,37 +1,33 @@
 import pytest
+import asyncio
 from unittest.mock import AsyncMock, MagicMock
-from aiogram.types import User, Chat, Message, CallbackQuery
+
+@pytest.fixture(scope="session")
+def event_loop():
+    """Create an instance of the default event loop for each test case."""
+    loop = asyncio.get_event_loop_policy().new_event_loop()
+    yield loop
+    loop.close()
 
 @pytest.fixture
-def mock_user():
-    return User(id=123456789, is_bot=False, first_name="Test", last_name="User", username="testuser")
+def mock_session():
+    """Mock for SQLAlchemy async session"""
+    session = AsyncMock()
+    # Mocking basic context manager behavior
+    session.__aenter__.return_value = session
+    session.__aexit__.return_value = None
+    
+    # Synchronous methods in AsyncSession
+    session.add = MagicMock()
+    session.merge = AsyncMock() # merge is actually async in AsyncSession! 
+    # Wait, let me check SQLAlchemy docs for AsyncSession.merge.
+    # AsyncSession.merge() is awaitable.
+    # AsyncSession.add() is NOT awaitable.
+    return session
 
 @pytest.fixture
-def mock_chat():
-    return Chat(id=123456789, type="private")
-
-@pytest.fixture
-def mock_message(mock_user, mock_chat):
-    message = MagicMock(spec=Message)
-    message.from_user = mock_user
-    message.chat = mock_chat
-    message.text = "/start"
-    message.answer = AsyncMock()
-    message.edit_text = AsyncMock()
-    return message
-
-@pytest.fixture
-def mock_callback(mock_user, mock_message):
-    callback = MagicMock(spec=CallbackQuery)
-    callback.from_user = mock_user
-    callback.message = mock_message
-    callback.data = "test_data"
-    callback.answer = AsyncMock()
-    return callback
-
-@pytest.fixture(autouse=True)
-def mock_db_session(mocker):
-    """Global mock for DB sessions to prevent actual DB connections during unit tests"""
-    mock_session = AsyncMock()
-    mocker.patch('core.database.models.async_session', return_value=mock_session)
-    return mock_session
+def mock_session_factory(mock_session):
+    """Mock for SQLAlchemy sessionmaker"""
+    factory = MagicMock()
+    factory.return_value = mock_session
+    return factory
