@@ -65,3 +65,43 @@ def test_extract_views(parser):
     soup_no_today = BeautifulSoup(html_no_today, 'lxml')
     views_no_today = parser._extract_views(soup_no_today)
     assert views_no_today == 0
+
+def test_extract_rooms(parser):
+    # From title
+    title = "2-комн. квартира, 54,2 м²"
+    soup = BeautifulSoup("", 'lxml')
+    assert parser._extract_rooms(title, soup) == 2
+    
+    # From title (studio)
+    title_studio = "Студия, 20 м²"
+    assert parser._extract_rooms(title_studio, soup) == 0
+    
+    # From characteristics
+    html = """
+    <div data-name="OfferFactItem">
+        <div class="--title--">Количество комнат</div>
+        <div class="--value--">3-комнатная</div>
+    </div>
+    """
+    soup_char = BeautifulSoup(html, 'lxml')
+    assert parser._extract_rooms("", soup_char) == 3
+
+def test_extract_area(parser):
+    # From title
+    title = "2-комн. квартира, 54.2 м²"
+    soup = BeautifulSoup("", 'lxml')
+    assert parser._extract_area(title, soup) == 54.2
+    
+    # From title with comma
+    title_comma = "2-комн. квартира, 54,2 м²"
+    assert parser._extract_area(title_comma, soup) == 54.2
+    
+    # From characteristics
+    html = """
+    <div data-name="OfferFactItem">
+        <div class="--title--">Общая площадь</div>
+        <div class="--value--">60.5 м²</div>
+    </div>
+    """
+    soup_char = BeautifulSoup(html, 'lxml')
+    assert parser._extract_area("", soup_char) == 60.5

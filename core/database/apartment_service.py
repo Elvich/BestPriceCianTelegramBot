@@ -612,6 +612,11 @@ class ApartmentService:
                         # Обновляем детали если есть
                         if details and isinstance(details, dict):
                             existing.address = details.get('address')
+                            existing.rooms = details.get('rooms')
+                            existing.area = details.get('area')
+                            existing.floor = details.get('floor')
+                            existing.floors_total = details.get('floors_total')
+                            existing.views_per_day = details.get('views_today')
                             
                             # Удаляем старые станции метро и добавляем новые
                             for metro in existing.metro_stations:
@@ -644,6 +649,11 @@ class ApartmentService:
                         # Обрабатываем детали
                         if details and isinstance(details, dict):
                             apartment.address = details.get('address')
+                            apartment.rooms = details.get('rooms')
+                            apartment.area = details.get('area')
+                            apartment.floor = details.get('floor')
+                            apartment.floors_total = details.get('floors_total')
+                            apartment.views_per_day = details.get('views_today')
                             
                             metro_stations = details.get('metro_stations', [])
                             for metro_info in metro_stations:

@@ -7,9 +7,11 @@ python-dotenv
 beautifulsoup4
 lxml
 requests
+aiohttp
+aiohttp-socks
 openpyxl
 pytest
 pytest-asyncio
 pytest-mock
 aiosqlite
-lxml
+brotli

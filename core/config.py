@@ -61,8 +61,21 @@ class Config:
     AUTO_PARSER_CYCLE_DELAY: int = int(os.getenv('AUTO_PARSER_CYCLE_DELAY', '1800'))  # 30 минут между циклами
     
     # API Configuration
-    REQUEST_TIMEOUT: int = int(os.getenv('REQUEST_TIMEOUT', '30'))
-    MAX_RETRIES: int = int(os.getenv('MAX_RETRIES', '3'))
+    REQUEST_TIMEOUT: int = int(os.getenv('REQUEST_TIMEOUT', '60'))
+    MAX_RETRIES: int = int(os.getenv('MAX_RETRIES', '10'))
+    PROXY_URL: Optional[str] = os.getenv('PROXY_URL')
+    PROXY_LIST: list[str] = [p.strip() for p in os.getenv('PROXY_LIST', '').split(',') if p.strip()]
+    PROXY_FILE_PATH: str = os.getenv('PROXY_FILE_PATH', 'proxies.txt')
+    PROXY_CHECK_URL: str = os.getenv('PROXY_CHECK_URL', 'https://www.cian.ru')
+    # Public proxy sources
+    PROXY_PUBLIC_SOURCES: list[str] = [
+        'https://raw.githubusercontent.com/TheSpeedX/SOCKS-List/master/socks5.txt',
+        'https://raw.githubusercontent.com/hookzof/socks5_list/master/proxy.txt',
+        'https://raw.githubusercontent.com/monosans/proxy-list/main/proxies/socks5.txt',
+        'https://raw.githubusercontent.com/zloi-user/hideip.me/main/socks5.txt',
+        'https://raw.githubusercontent.com/rdavydov/proxy-list/main/proxies/socks5.txt'
+    ]
+    VERIFY_SSL: bool = os.getenv('VERIFY_SSL', 'True').lower() == 'true'
     
     # Bot Notification Settings
     NOTIFICATION_CHECK_INTERVAL: int = int(os.getenv('NOTIFICATION_CHECK_INTERVAL', '30'))
