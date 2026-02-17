@@ -27,8 +27,14 @@ import re
 import time
 import random
 import json
+from datetime import datetime, timedelta
 from bs4 import BeautifulSoup
 from fake_useragent import UserAgent
+
+try:
+    from curl_cffi import requests as curl_requests
+except ImportError:
+    curl_requests = None
 
 # Add project root to sys.path
 current_dir = os.path.dirname(os.path.abspath(__file__))
