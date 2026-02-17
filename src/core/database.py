@@ -1,7 +1,6 @@
-from sqlalchemy import create_engine, Column, Integer, String, Boolean, Float, Text, ForeignKey, BigInteger, JSON, DateTime
-from sqlalchemy.orm import declarative_base, sessionmaker, relationship
-from sqlalchemy.sql import func
 import datetime
+import os
+from dotenv import load_dotenv
 
 Base = declarative_base()
 
@@ -136,9 +135,12 @@ class User(Base):
     last_activity_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
 # Configuration
-# Replace 'username:password@localhost/dbname' with your actual values
-# Example: postgresql://postgres:1234@localhost/cian_db
-DATABASE_URL = "postgresql://elvi4:Postico@localhost/cian_db"
+# Load environment variables
+current_dir = os.path.dirname(os.path.abspath(__file__))
+project_root = os.path.dirname(os.path.dirname(current_dir))
+load_dotenv(os.path.join(project_root, ".env"))
+
+DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://user:password@localhost/cian_db")
 
 engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
