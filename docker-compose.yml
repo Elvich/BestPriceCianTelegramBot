@@ -1,0 +1,48 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: cian_db
+    restart: always
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-cian_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-cian_password}
+      POSTGRES_DB: ${POSTGRES_DB:-cian_db}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./src/core/schema.sql:/docker-entrypoint-initdb.d/schema.sql:ro
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U $${POSTGRES_USER:-cian_user} -d $${POSTGRES_DB:-cian_db}" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  bot:
+    build: .
+    container_name: cian_bot
+    restart: always
+    depends_on:
+      db:
+        condition: service_healthy
+    env_file: .env
+    volumes:
+      - ./data:/app/data
+    command: python src/bot/bot.py
+
+  parser:
+    build: .
+    container_name: cian_parser
+    restart: always
+    depends_on:
+      db:
+        condition: service_healthy
+    env_file: .env
+    volumes:
+      - ./data:/app/data
+    command: python src/parser/run_parsers.py --all-sources --pages 3 --update-limit 25 --loop --interval 60
+
+volumes:
+  postgres_data:
