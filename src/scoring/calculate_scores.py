@@ -5,8 +5,17 @@ Calculates and stores scoring for all apartments in the database.
 Max score: 200 points (100 quality + 100 market interest)
 """
 
+import os
+import sys
 from sqlalchemy import text
-from database import engine, SessionLocal
+
+# Add project root to sys.path
+current_dir = os.path.dirname(os.path.abspath(__file__))
+project_root = os.path.dirname(os.path.dirname(current_dir))
+if project_root not in sys.path:
+    sys.path.insert(0, project_root)
+
+from src.core.database import engine, SessionLocal
 from datetime import datetime
 
 

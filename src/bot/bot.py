@@ -11,17 +11,16 @@ from aiogram.exceptions import TelegramBadRequest
 from dotenv import load_dotenv
 from sqlalchemy import text, desc, func
 
-# Add the parent directory to sys.path to import from 'critical'
+# Add the project root to sys.path
 current_dir = os.path.dirname(os.path.abspath(__file__))
-parent_dir = os.path.dirname(current_dir)
-if parent_dir not in sys.path:
-    sys.path.append(parent_dir)
+project_root = os.path.dirname(os.path.dirname(current_dir))
+if project_root not in sys.path:
+    sys.path.insert(0, project_root)
 
-from database import SessionLocal, User, Offer, OfferDetail, OfferScore, OfferPrice
-from keyboards import get_main_keyboard, get_offer_inline_keyboard
+from src.core.database import SessionLocal, User, Offer, OfferDetail, OfferScore, OfferPrice
+from src.bot.keyboards import get_main_keyboard, get_offer_inline_keyboard
 
 # Load environment variables
-project_root = os.path.dirname(parent_dir)
 load_dotenv(os.path.join(project_root, ".env"))
 
 TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
@@ -80,7 +79,7 @@ async def register_user(message: Message):
         db.close()
 
 from sqlalchemy import and_, not_, exists
-from database import SessionLocal, User, Offer, OfferDetail, OfferScore, OfferPrice, UserInteraction, OfferStat, BannedMetro
+from src.core.database import SessionLocal, User, Offer, OfferDetail, OfferScore, OfferPrice, UserInteraction, OfferStat, BannedMetro
 
 async def get_offer_data(index: int, user_tg_id: int, only_favorites: bool = False, sort_by: str = "score"):
     """Fetch offer data filtered by user interactions and sorted by preferred metric"""

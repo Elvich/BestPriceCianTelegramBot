@@ -13,8 +13,16 @@ Usage:
 
 import argparse
 import sys
+import os
 from datetime import datetime
-from database import SessionLocal, SearchUrl
+
+# Add project root to sys.path
+current_dir = os.path.dirname(os.path.abspath(__file__))
+project_root = os.path.dirname(current_dir)
+if project_root not in sys.path:
+    sys.path.insert(0, project_root)
+
+from src.core.database import SessionLocal, SearchUrl
 
 
 def list_search_urls(active_only=False):

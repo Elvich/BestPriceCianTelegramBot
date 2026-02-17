@@ -15,17 +15,16 @@ Example:
         --max-offers 100
 """
 
-import requests
-from bs4 import BeautifulSoup
-from fake_useragent import UserAgent
-import random
-import time
-import re
-import argparse
-from datetime import datetime
-from sqlalchemy import func
+import os
+import sys
 
-from database import SessionLocal, Offer, SearchUrl
+# Add project root to sys.path
+current_dir = os.path.dirname(os.path.abspath(__file__))
+project_root = os.path.dirname(os.path.dirname(current_dir))
+if project_root not in sys.path:
+    sys.path.insert(0, project_root)
+
+from src.core.database import SessionLocal, Offer, SearchUrl
 
 
 class ListingParser:
@@ -73,7 +72,10 @@ class ListingParser:
             # Format as "key=value; key2=value2"
             cookie_str = "; ".join([f"{k}={v}" for k, v in cookies.items()])
             
-            with open('cookies.txt', 'w', encoding='utf-8') as f:
+            # Ensure data directory exists
+            os.makedirs('data', exist_ok=True)
+            
+            with open('data/cookies.txt', 'w', encoding='utf-8') as f:
                 f.write(cookie_str)
                 
         except Exception as e:

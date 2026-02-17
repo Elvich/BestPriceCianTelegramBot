@@ -1,0 +1,22 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+env/
+venv/
+ENV/
+
+# Configuration and Data
+.env
+data/cookies.txt
+*.db
+*.sqlite
+
+# IDEs
+.vscode/
+.idea/
+.DS_Store
+
+# Logs
+*.log

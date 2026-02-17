@@ -19,23 +19,17 @@ Examples:
     python detail_parser.py --limit 20 --prioritize-new
 """
 
-import requests
-try:
-    from curl_cffi import requests as curl_requests
-except ImportError:
-    curl_requests = None
-from bs4 import BeautifulSoup
-from fake_useragent import UserAgent
+import os
+import sys
 import webbrowser
-import random
-import time
-import re
-import json
-import argparse
-from datetime import datetime, timedelta
-from sqlalchemy import func, and_, or_
 
-from database import SessionLocal, Offer, OfferDetail, OfferPrice, OfferStat
+# Add project root to sys.path
+current_dir = os.path.dirname(os.path.abspath(__file__))
+project_root = os.path.dirname(os.path.dirname(current_dir))
+if project_root not in sys.path:
+    sys.path.insert(0, project_root)
+
+from src.core.database import SessionLocal, Offer, OfferDetail, OfferPrice, OfferStat
 
 
 class DetailParser:
@@ -83,9 +77,9 @@ class DetailParser:
         self.load_cookies()
 
     def load_cookies(self):
-        """Load cookies from cookies.txt if exists"""
+        """Load cookies from data/cookies.txt if exists"""
         try:
-            with open('cookies.txt', 'r', encoding='utf-8') as f:
+            with open('data/cookies.txt', 'r', encoding='utf-8') as f:
                 cookie_data = f.read().strip()
                 
             if not cookie_data:
@@ -127,9 +121,12 @@ class DetailParser:
             # Format as "key=value; key2=value2"
             cookie_str = "; ".join([f"{k}={v}" for k, v in cookies.items()])
             
-            with open('cookies.txt', 'w', encoding='utf-8') as f:
+            # Ensure data directory exists
+            os.makedirs('data', exist_ok=True)
+            
+            with open('data/cookies.txt', 'w', encoding='utf-8') as f:
                 f.write(cookie_str)
-            print("  🍪 Cookies updated in cookies.txt")
+            print("  🍪 Cookies updated in data/cookies.txt")
                 
         except Exception as e:
             print(f"  ⚠️  Error saving cookies: {e}")
