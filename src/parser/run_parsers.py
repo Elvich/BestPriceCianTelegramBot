@@ -32,6 +32,7 @@ if project_root not in sys.path:
 
 from src.parser.listing_parser import ListingParser
 from src.parser.detail_parser import DetailParser
+from src.scoring.calculate_scores import calculate_scores, show_statistics
 from src.core.database import SessionLocal, Offer
 
 
@@ -153,6 +154,14 @@ def run_workflow(args):
         max_age_hours=args.max_age_hours,
         prioritize_new=True  # Always prioritize new offers in workflow
     )
+    
+    # Phase 3: Scoring
+    print_header("PHASE 3: SCORING CALCULATION")
+    try:
+        calculate_scores()
+        show_statistics()
+    except Exception as e:
+        print(f"⚠️  Scoring calculation failed: {e}")
     
     # Final statistics
     stats_final = get_database_stats()

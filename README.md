@@ -60,22 +60,37 @@ Ensure PostgreSQL is running and your database exists, then run the schema:
 psql -d YOUR_DB_NAME -f src/core/schema.sql
 ```
 
-## 🏃 Running the Project
+## 🐳 Docker Deployment 
 
-### Start the Bot
+Using Docker Compose is the most reliable way to run the bot and parser continuously on a server.
+
+### 1. Requirements
+- Docker and Docker Compose installed on your server.
+
+### 2. Configure Environment
+Create a `.env` file from the Docker template:
 ```bash
-python src/bot/bot.py
+cp config/.env.example .env
 ```
+Edit the `.env` file with your **Bot Token** and **Postgres credentials**.
+
+### 3. Launch Services
+Run the following command to build and start the database, bot, and parser in the background:
+```bash
+docker compose up -d --build
+```
+
+### 4. Monitor
+Check the logs to ensure everything is running correctly:
+```bash
+docker compose logs -f
+```
+
+## Manual Execution (Alternative)
 
 ### Run the Parser
-To start collecting and scoring data:
 ```bash
-python src/parser/run_parsers.py --all-sources --pages 3 --update-limit 25 --loop --interval 60
-```
-
-### Manage Search Sources
-```bash
-python scripts/manage_search_urls.py list
+python run_parsers.py --all-sources --pages 3 --update-limit 25 --loop --interval 60
 ```
 
 ## 🍪 Cookies
