@@ -22,6 +22,13 @@ Examples:
 import os
 import sys
 import webbrowser
+import requests
+import re
+import time
+import random
+import json
+from bs4 import BeautifulSoup
+from fake_useragent import UserAgent
 
 # Add project root to sys.path
 current_dir = os.path.dirname(os.path.abspath(__file__))
