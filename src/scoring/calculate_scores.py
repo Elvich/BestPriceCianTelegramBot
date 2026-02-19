@@ -17,6 +17,8 @@ if project_root not in sys.path:
 
 from src.core.database import engine, SessionLocal
 from datetime import datetime
+import asyncio
+from src.core.notifications import send_high_score_notifications
 
 
 def calculate_scores():
@@ -209,6 +211,13 @@ def calculate_scores():
         raise
     finally:
         session.close()
+
+    # Send notifications for high scores
+    try:
+        print("\n🔔 Checking for high-scored apartments to notify...")
+        asyncio.run(send_high_score_notifications())
+    except Exception as e:
+        print(f"⚠️ Error sending notifications: {e}")
 
 
 def show_statistics():

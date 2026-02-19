@@ -102,6 +102,7 @@ class OfferScore(Base):
     total_score = Column(Integer, default=0)
     discount_pct = Column(Float)
     calculated_at = Column(DateTime(timezone=True), default=func.now())
+    is_notified = Column(Boolean, default=False)
 
     offer = relationship("Offer", backref="score")
 

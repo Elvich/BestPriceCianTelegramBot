@@ -40,7 +40,7 @@ services:
     env_file: .env
     volumes:
       - ./data:/app/data
-    command: python src/parser/run_parsers.py --all-sources --pages 3 --update-limit 25 --loop --interval 60
+    command: python src/parser/run_parsers.py --all-sources --pages 3 --update-limit 50 --loop --interval 60
 
 volumes:
   postgres_data:
